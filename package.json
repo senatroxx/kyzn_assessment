@@ -1,0 +1,32 @@
+{
+  "name": "kyzn-fitness-crm",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --parallel dev:dashboard dev:leads dev:api",
+    "dev:dashboard": "bun run --cwd apps/dashboard dev",
+    "dev:leads": "bun run --cwd apps/lead-management dev",
+    "dev:api": "bun run --cwd apps/api dev",
+    "build": "bun run --filter '*' build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "eslint .",
+    "test": "bun run --filter '*' test",
+    "format": "prettier --write package.json tsconfig.base.json eslint.config.js .prettierrc README.md apps packages",
+    "format:check": "prettier --check package.json tsconfig.base.json eslint.config.js .prettierrc README.md apps packages"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "bun-types": "^1.2.22",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2"
+  }
+}
