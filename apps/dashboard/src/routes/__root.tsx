@@ -1,4 +1,6 @@
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
+import { Alert, AlertTitle } from "@kyzn/ui/components/alert";
+import { Button } from "@kyzn/ui/components/button";
 
 function RootLayout() {
   return (
@@ -21,12 +23,12 @@ function RootLayout() {
 function RouteError() {
   const router = useRouter();
   return (
-    <p role="alert">
-      This page could not load.{" "}
-      <button className="underline" onClick={() => router.invalidate()}>
+    <Alert role="alert" variant="destructive">
+      <AlertTitle>This page could not load.</AlertTitle>
+      <Button variant="ghost" onClick={() => router.invalidate()}>
         Try again
-      </button>
-    </p>
+      </Button>
+    </Alert>
   );
 }
 

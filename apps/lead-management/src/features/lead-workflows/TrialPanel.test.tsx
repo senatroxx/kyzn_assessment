@@ -55,6 +55,37 @@ function setup(
   return { fetchMock, invalidate };
 }
 
+async function chooseVenue() {
+  const trigger = screen.getByRole("combobox", { name: "Venue" });
+  await waitFor(() => expect(trigger).toBeEnabled());
+  trigger.focus();
+  expect(trigger).toHaveFocus();
+  fireEvent.keyDown(trigger, { key: "ArrowDown" });
+  expect(trigger).toHaveAttribute("aria-expanded", "true");
+  const options = await screen.findAllByRole("option");
+  const targetIndex = options.findIndex(
+    (option) => option.textContent?.trim() === "Central",
+  );
+  if (targetIndex < 0) throw new Error("Missing venue option: Central");
+  await waitFor(() =>
+    expect(options).toContain(document.activeElement as HTMLElement),
+  );
+  let currentIndex = options.findIndex(
+    (option) => option === document.activeElement,
+  );
+  if (targetIndex < currentIndex) {
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "Home" });
+    await waitFor(() => expect(options[0]).toHaveFocus());
+    currentIndex = 0;
+  }
+  while (currentIndex < targetIndex) {
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "ArrowDown" });
+    currentIndex += 1;
+    await waitFor(() => expect(options[currentIndex]).toHaveFocus());
+  }
+  fireEvent.keyDown(document.activeElement ?? trigger, { key: "Enter" });
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -63,10 +94,7 @@ afterEach(() => {
 describe("TrialPanel", () => {
   test("looks up venues and schedules a human-entered appointment as UTC", async () => {
     const { fetchMock, invalidate } = setup();
-    await screen.findByRole("option", { name: "Central" });
-    fireEvent.change(screen.getByLabelText("Venue"), {
-      target: { value: venue.id },
-    });
+    await chooseVenue();
     fireEvent.change(screen.getByLabelText("Scheduled time"), {
       target: { value: "2026-10-26T10:00" },
     });
@@ -176,10 +204,7 @@ describe("TrialPanel", () => {
           ),
     );
     setup("new", [], fetcher);
-    await screen.findByRole("option", { name: "Central" });
-    fireEvent.change(screen.getByLabelText("Venue"), {
-      target: { value: venue.id },
-    });
+    await chooseVenue();
     fireEvent.change(screen.getByLabelText("Scheduled time"), {
       target: { value: "2026-10-26T10:00" },
     });
@@ -192,7 +217,9 @@ describe("TrialPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Trial cannot be scheduled",
     );
-    expect(screen.getByLabelText("Venue")).toHaveValue(venue.id);
+    expect(screen.getByRole("combobox", { name: "Venue" })).toHaveTextContent(
+      "Central",
+    );
     expect(screen.getByLabelText("Scheduled time")).toHaveValue(
       "2026-10-26T10:00",
     );
@@ -211,7 +238,9 @@ describe("TrialPanel", () => {
       completed,
       cancelled,
     ]);
-    expect(await screen.findByText(/completed ·/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("completed", { exact: true }),
+    ).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: "Record attendance" }),
     ).toHaveLength(1);

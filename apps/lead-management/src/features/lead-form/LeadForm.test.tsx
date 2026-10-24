@@ -40,6 +40,35 @@ function json(data: unknown, status = 200) {
   });
 }
 
+async function chooseOption(label: string, option: string) {
+  const trigger = screen.getByRole("combobox", { name: label });
+  await waitFor(() => expect(trigger).toBeEnabled());
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: "ArrowDown" });
+  const options = await screen.findAllByRole("option");
+  const targetIndex = options.findIndex(
+    (item) => item.textContent?.trim() === option,
+  );
+  if (targetIndex < 0) throw new Error(`Missing option: ${option}`);
+  await waitFor(() =>
+    expect(options).toContain(document.activeElement as HTMLElement),
+  );
+  let currentIndex = options.findIndex(
+    (item) => item === document.activeElement,
+  );
+  if (targetIndex < currentIndex) {
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "Home" });
+    await waitFor(() => expect(options[0]).toHaveFocus());
+    currentIndex = 0;
+  }
+  while (currentIndex < targetIndex) {
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "ArrowDown" });
+    currentIndex += 1;
+    await waitFor(() => expect(options[currentIndex]).toHaveFocus());
+  }
+  fireEvent.keyDown(document.activeElement ?? trigger, { key: "Enter" });
+}
+
 beforeEach(() => {
   queryClient.clear();
   window.history.replaceState({}, "", "/leads/new");
@@ -70,12 +99,8 @@ describe("lead forms", () => {
     fireEvent.change(screen.getByLabelText("Email"), {
       target: { value: "rani@example.com" },
     });
-    fireEvent.change(screen.getByLabelText("Interested venue"), {
-      target: { value: venue.id },
-    });
-    fireEvent.change(screen.getByLabelText("Assigned consultant"), {
-      target: { value: consultant.id },
-    });
+    await chooseOption("Interested venue", "Central");
+    await chooseOption("Assigned consultant", "Ayu");
     fireEvent.click(screen.getByRole("button", { name: "Create lead" }));
     expect(
       await screen.findByText("Expected a supported phone number"),
@@ -145,12 +170,8 @@ describe("lead forms", () => {
     fireEvent.change(screen.getByLabelText("Email"), {
       target: { value: lead.email },
     });
-    fireEvent.change(screen.getByLabelText("Interested venue"), {
-      target: { value: venue.id },
-    });
-    fireEvent.change(screen.getByLabelText("Assigned consultant"), {
-      target: { value: consultant.id },
-    });
+    await chooseOption("Interested venue", "Central");
+    await chooseOption("Assigned consultant", "Ayu");
     expect(
       await screen.findByText(/Possible duplicate leads/),
     ).toBeInTheDocument();
@@ -197,12 +218,8 @@ describe("lead forms", () => {
     fireEvent.change(screen.getByLabelText("Email"), {
       target: { value: "rani@example.com" },
     });
-    fireEvent.change(screen.getByLabelText("Interested venue"), {
-      target: { value: venue.id },
-    });
-    fireEvent.change(screen.getByLabelText("Assigned consultant"), {
-      target: { value: consultant.id },
-    });
+    await chooseOption("Interested venue", "Central");
+    await chooseOption("Assigned consultant", "Ayu");
     fireEvent.click(screen.getByRole("button", { name: "Create lead" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Phone already invalid on server",

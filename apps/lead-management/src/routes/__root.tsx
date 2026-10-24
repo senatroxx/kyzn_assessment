@@ -4,6 +4,9 @@ import {
   Outlet,
   useRouter,
 } from "@tanstack/react-router";
+import { Alert, AlertDescription } from "@kyzn/ui/components/alert";
+import { Button } from "@kyzn/ui/components/button";
+import { Skeleton } from "@kyzn/ui/components/skeleton";
 
 const dashboardUrl =
   import.meta.env.VITE_DASHBOARD_URL ?? "http://localhost:3000";
@@ -50,18 +53,24 @@ function RootLayout() {
 function RouteError() {
   const router = useRouter();
   return (
-    <p role="alert">
-      This page could not load.{" "}
-      <button className="underline" onClick={() => router.invalidate()}>
+    <Alert role="alert" variant="destructive">
+      <AlertDescription>This page could not load.</AlertDescription>
+      <Button variant="outline" size="sm" onClick={() => router.invalidate()}>
         Try again
-      </button>
-    </p>
+      </Button>
+    </Alert>
   );
 }
 
 export const Route = createRootRoute({
   component: RootLayout,
-  pendingComponent: () => <p role="status">Loading page…</p>,
+  pendingComponent: () => (
+    <div role="status" className="space-y-3">
+      <span className="sr-only">Loading page…</span>
+      <Skeleton className="h-7 w-48" />
+      <Skeleton className="h-20 w-full" />
+    </div>
+  ),
   errorComponent: RouteError,
   notFoundComponent: () => (
     <section aria-labelledby="not-found-heading">

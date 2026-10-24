@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { leadDetailResponseSchema } from "@kyzn/shared";
+import { Alert, AlertDescription } from "@kyzn/ui/components/alert";
+import { Badge } from "@kyzn/ui/components/badge";
+import { Button } from "@kyzn/ui/components/button";
+import { Card, CardContent } from "@kyzn/ui/components/card";
+import { Skeleton } from "@kyzn/ui/components/skeleton";
 import { apiRequest, ApiRequestError } from "../../lib/api";
 import { leadQueryKeys } from "../../lib/query-keys";
 import { ContactPanel } from "../lead-workflows/ContactPanel";
@@ -30,7 +35,15 @@ export function LeadDetail({ leadId }: { leadId: string }) {
       ),
   });
 
-  if (detail.isPending) return <p role="status">Loading lead details…</p>;
+  if (detail.isPending)
+    return (
+      <div role="status" className="space-y-3">
+        <span className="sr-only">Loading lead details…</span>
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
   if (detail.isError) {
     const missing =
       detail.error instanceof ApiRequestError && detail.error.status === 404;
@@ -39,20 +52,23 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         <h2 id="detail-heading" className="text-xl font-semibold">
           {missing ? "Lead not found" : "Could not load lead details"}
         </h2>
-        <p role="alert" className="mt-3">
-          {missing
-            ? "This lead may have been removed or the link may be incorrect."
-            : detail.error.message}
-        </p>
+        <Alert role="alert" variant="destructive" className="mt-3">
+          <AlertDescription>
+            {missing
+              ? "This lead may have been removed or the link may be incorrect."
+              : detail.error.message}
+          </AlertDescription>
+        </Alert>
         <div className="mt-4 flex flex-wrap gap-5">
           {!missing && (
-            <button
+            <Button
               type="button"
-              className={linkClass}
+              variant="outline"
+              size="sm"
               onClick={() => void detail.refetch()}
             >
               Retry
-            </button>
+            </Button>
           )}
           <Link className={linkClass} to="/leads">
             Back to leads
@@ -83,7 +99,9 @@ export function LeadDetail({ leadId }: { leadId: string }) {
           <h2 id="detail-heading" className="text-xl font-semibold">
             {lead.fullName}
           </h2>
-          <p className="mt-1 text-sm">{readable(lead.status)}</p>
+          <Badge className="mt-1" variant="secondary">
+            {readable(lead.status)}
+          </Badge>
         </div>
         <nav aria-label="Lead actions" className="flex flex-wrap gap-5">
           <Link
@@ -103,22 +121,28 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         <h3 id="profile-heading" className="font-semibold">
           Lead profile
         </h3>
-        <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-          {fields.map(([label, value]) => (
-            <div key={label} className="min-w-0">
-              <dt className="text-sm text-[#555a53]">{label}</dt>
-              <dd className="mt-1 break-words">
-                {value === null ? (
-                  "Not recorded"
-                ) : label === "Created" || label === "Last contacted" ? (
-                  <time dateTime={value}>{dateTime(value)}</time>
-                ) : (
-                  value
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <Card className="mt-3">
+          <CardContent className="p-4">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+              {fields.map(([label, value]) => (
+                <div key={label} className="min-w-0">
+                  <dt className="text-sm text-[#555a53]">{label}</dt>
+                  <dd className="mt-1 break-words">
+                    {value === null ? (
+                      "Not recorded"
+                    ) : label === "Created" || label === "Last contacted" ? (
+                      <time dateTime={value}>{dateTime(value)}</time>
+                    ) : label === "Status" ? (
+                      <Badge variant="secondary">{value}</Badge>
+                    ) : (
+                      value
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
       </section>
 
       <section aria-labelledby="duplicate-heading" className="mt-8">
@@ -154,22 +178,23 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         ) : (
           <ol className="mt-2 space-y-3">
             {lead.activities.map((activity) => (
-              <li
-                key={activity.id}
-                className="rounded-sm border border-[#d5d9d1] p-3"
-              >
-                <p className="font-medium">
-                  {readable(activity.type)} ·{" "}
-                  <time dateTime={activity.occurredAt}>
-                    {dateTime(activity.occurredAt)}
-                  </time>
-                </p>
-                {activity.note && <p className="mt-1">{activity.note}</p>}
-                {activity.nextFollowUpDate && (
-                  <p className="mt-1 text-sm">
-                    Follow-up: {activity.nextFollowUpDate}
-                  </p>
-                )}
+              <li key={activity.id}>
+                <Card>
+                  <CardContent className="p-3">
+                    <p className="font-medium">
+                      {readable(activity.type)} ·{" "}
+                      <time dateTime={activity.occurredAt}>
+                        {dateTime(activity.occurredAt)}
+                      </time>
+                    </p>
+                    {activity.note && <p className="mt-1">{activity.note}</p>}
+                    {activity.nextFollowUpDate && (
+                      <p className="mt-1 text-sm">
+                        Follow-up: {activity.nextFollowUpDate}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
               </li>
             ))}
           </ol>

@@ -15,6 +15,27 @@ import {
   type LeadListQuery,
   type LeadListResponse,
 } from "@kyzn/shared";
+import { Alert, AlertDescription } from "@kyzn/ui/components/alert";
+import { Badge } from "@kyzn/ui/components/badge";
+import { Button } from "@kyzn/ui/components/button";
+import { Input } from "@kyzn/ui/components/input";
+import { Label } from "@kyzn/ui/components/label";
+import { Skeleton } from "@kyzn/ui/components/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@kyzn/ui/components/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@kyzn/ui/components/table";
 import { apiRequest } from "../../lib/api";
 import { leadQueryKeys } from "../../lib/query-keys";
 
@@ -105,9 +126,11 @@ export function LeadList() {
   );
   const data = listQuery.data;
   const sortButton = (sortBy: LeadListQuery["sortBy"]) => (
-    <button
+    <Button
       type="button"
-      className="min-h-11 rounded-sm border border-[#777] px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+      className="min-h-11"
+      variant="outline"
+      size="sm"
       aria-pressed={search.sortBy === sortBy}
       onClick={() => updateQuery({ sortBy, page: 1 })}
     >
@@ -117,7 +140,7 @@ export function LeadList() {
           ? " ↑"
           : " ↓"
         : ""}
-    </button>
+    </Button>
   );
   const toggleSortOrder = () =>
     updateQuery({
@@ -131,83 +154,103 @@ export function LeadList() {
         Lead list
       </h2>
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="text-sm font-medium" htmlFor="lead-search">
+        <Label className="text-sm font-medium" htmlFor="lead-search">
           Search name, phone, or email
-          <input
+          <Input
             id="lead-search"
-            className="mt-1 min-h-11 w-full rounded-sm border border-[#777] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+            className="mt-1 min-h-11 w-full font-normal"
             type="search"
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
           />
-        </label>
-        <label className="text-sm font-medium" htmlFor="lead-source">
-          Source
-          <select
-            id="lead-source"
-            className="mt-1 min-h-11 w-full rounded-sm border border-[#777] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
-            value={search.source ?? ""}
-            onChange={(event) =>
+        </Label>
+        <div className="grid gap-1 text-sm font-medium">
+          <Label htmlFor="lead-source">Source</Label>
+          <Select
+            value={search.source ?? "all"}
+            onValueChange={(value) =>
               updateQuery({
-                source: event.target.value
-                  ? (event.target.value as LeadListQuery["source"])
-                  : undefined,
+                source:
+                  value === "all"
+                    ? undefined
+                    : (value as LeadListQuery["source"]),
                 page: 1,
               })
             }
           >
-            <option value="">All sources</option>
-            {leadSources.map((source) => (
-              <option key={source} value={source}>
-                {source.replaceAll("_", " ")}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-medium" htmlFor="lead-consultant">
-          Consultant
-          <select
-            id="lead-consultant"
-            className="mt-1 min-h-11 w-full rounded-sm border border-[#777] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
-            value={search.consultantId ?? ""}
-            onChange={(event) =>
+            <SelectTrigger
+              id="lead-source"
+              className="mt-1 min-h-11 w-full font-normal"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sources</SelectItem>
+              {leadSources.map((source) => (
+                <SelectItem key={source} value={source}>
+                  {source.replaceAll("_", " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1 text-sm font-medium">
+          <Label htmlFor="lead-consultant">Consultant</Label>
+          <Select
+            value={search.consultantId ?? "all"}
+            onValueChange={(value) =>
               updateQuery({
-                consultantId: event.target.value || undefined,
+                consultantId: value === "all" ? undefined : value,
                 page: 1,
               })
             }
           >
-            <option value="">All consultants</option>
-            {consultantsQuery.data?.data.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-medium" htmlFor="lead-status">
-          Status
-          <select
-            id="lead-status"
-            className="mt-1 min-h-11 w-full rounded-sm border border-[#777] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
-            value={search.status ?? ""}
-            onChange={(event) =>
+            <SelectTrigger
+              id="lead-consultant"
+              className="mt-1 min-h-11 w-full font-normal"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All consultants</SelectItem>
+              {consultantsQuery.data?.data.map((person) => (
+                <SelectItem key={person.id} value={person.id}>
+                  {person.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1 text-sm font-medium">
+          <Label htmlFor="lead-status">Status</Label>
+          <Select
+            value={search.status ?? "all"}
+            onValueChange={(value) =>
               updateQuery({
-                status: event.target.value
-                  ? (event.target.value as LeadListQuery["status"])
-                  : undefined,
+                status:
+                  value === "all"
+                    ? undefined
+                    : (value as LeadListQuery["status"]),
                 page: 1,
               })
             }
           >
-            <option value="">All statuses</option>
-            {leadStatuses.map((status) => (
-              <option key={status} value={status}>
-                {status.replaceAll("_", " ")}
-              </option>
-            ))}
-          </select>
-        </label>
+            <SelectTrigger
+              id="lead-status"
+              className="mt-1 min-h-11 w-full font-normal"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {leadStatuses.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status.replaceAll("_", " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div
@@ -217,18 +260,20 @@ export function LeadList() {
           <span className="text-sm">Sort:</span>
           {sortButton("createdAt")}
           {sortButton("nextFollowUpDate")}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
-            className="min-h-11 rounded-sm border border-[#777] px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
             onClick={toggleSortOrder}
             aria-label={`Change sort order to ${search.sortOrder === "asc" ? "descending" : "ascending"}`}
           >
             {search.sortOrder === "asc" ? "Ascending" : "Descending"}
-          </button>
+          </Button>
         </div>
-        <button
+        <Button
           type="button"
-          className="min-h-11 rounded-sm border border-[#777] px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+          variant="outline"
+          size="sm"
           onClick={clearFilters}
           disabled={
             !hasFilters &&
@@ -238,38 +283,52 @@ export function LeadList() {
           }
         >
           Clear filters
-        </button>
-        <label className="text-sm" htmlFor="lead-page-size">
-          Rows per page
-          <select
-            id="lead-page-size"
-            className="ml-2 min-h-11 rounded-sm border border-[#777] px-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
-            value={search.pageSize}
-            onChange={(event) =>
-              updateQuery({ pageSize: Number(event.target.value), page: 1 })
+        </Button>
+        <div className="flex items-center text-sm">
+          <Label htmlFor="lead-page-size">Rows per page</Label>
+          <Select
+            value={String(search.pageSize)}
+            onValueChange={(value) =>
+              updateQuery({ pageSize: Number(value), page: 1 })
             }
           >
-            {[10, 20, 50, 100].map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </label>
+            <SelectTrigger id="lead-page-size" className="ml-2 min-h-11 w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[10, 20, 50, 100].map((size) => (
+                <SelectItem key={size} value={String(size)}>
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {listQuery.isPending ? <p role="status">Loading leads…</p> : null}
+      {listQuery.isPending ? (
+        <div role="status" className="space-y-3 py-4">
+          <span className="sr-only">Loading leads…</span>
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : null}
       {listQuery.isError ? (
-        <div role="alert" className="rounded-sm border border-red-700 p-4">
-          <p>Could not load leads: {listQuery.error.message}</p>
-          <button
+        <Alert role="alert" variant="destructive">
+          <AlertDescription>
+            Could not load leads: {listQuery.error.message}
+          </AlertDescription>
+          <Button
             type="button"
-            className="mt-2 underline focus-visible:outline-2"
+            className="mt-2"
+            variant="outline"
+            size="sm"
             onClick={() => void listQuery.refetch()}
           >
             Retry
-          </button>
-        </div>
+          </Button>
+        </Alert>
       ) : null}
       {data && data.meta.total === 0 ? (
         <p role="status" className="py-8">
@@ -291,12 +350,12 @@ export function LeadList() {
       {data && rows.length > 0 ? (
         <>
           <div className="w-full overflow-hidden rounded-sm border border-[#d5d9d1]">
-            <table className="w-full text-left text-xs sm:table-fixed sm:text-sm">
-              <thead className="hidden bg-[#f1f3ef] sm:table-header-group">
+            <Table className="w-full text-left text-xs sm:table-fixed sm:text-sm">
+              <TableHeader className="hidden bg-[#f1f3ef] sm:table-header-group">
                 {table.getHeaderGroups().map((group) => (
-                  <tr key={group.id}>
+                  <TableRow key={group.id}>
                     {group.headers.map((header) => (
-                      <th
+                      <TableHead
                         key={header.id}
                         scope="col"
                         className="break-words p-2 font-semibold sm:p-3"
@@ -307,19 +366,19 @@ export function LeadList() {
                               header.column.columnDef.header,
                               header.getContext(),
                             )}
-                      </th>
+                      </TableHead>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))}
-              </thead>
-              <tbody className="divide-y divide-[#e1e4df]">
+              </TableHeader>
+              <TableBody className="divide-y divide-[#e1e4df]">
                 {table.getRowModel().rows.map((row) => (
-                  <tr
+                  <TableRow
                     key={row.id}
                     className="block border-b border-[#e1e4df] align-top sm:table-row"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td
+                      <TableCell
                         key={cell.id}
                         className="block break-words p-2 sm:table-cell sm:p-3"
                       >
@@ -330,12 +389,12 @@ export function LeadList() {
                           cell.column.columnDef.cell,
                           cell.getContext(),
                         )}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
             <p>
@@ -347,25 +406,27 @@ export function LeadList() {
               aria-label="Lead list pages"
               className="flex items-center gap-2"
             >
-              <button
+              <Button
                 type="button"
-                className="min-h-11 rounded-sm border px-3 focus-visible:outline-2"
+                variant="outline"
+                size="sm"
                 disabled={data.meta.page <= 1}
                 onClick={() => updateQuery({ page: data.meta.page - 1 })}
               >
                 Previous
-              </button>
+              </Button>
               <span aria-live="polite">
                 Page {data.meta.page} of {data.meta.totalPages}
               </span>
-              <button
+              <Button
                 type="button"
-                className="min-h-11 rounded-sm border px-3 focus-visible:outline-2"
+                variant="outline"
+                size="sm"
                 disabled={data.meta.page >= data.meta.totalPages}
                 onClick={() => updateQuery({ page: data.meta.page + 1 })}
               >
                 Next
-              </button>
+              </Button>
             </nav>
           </div>
         </>
@@ -420,7 +481,11 @@ function makeColumns(
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ getValue }) => String(getValue()).replaceAll("_", " "),
+      cell: ({ getValue }) => (
+        <Badge variant="secondary">
+          {String(getValue()).replaceAll("_", " ")}
+        </Badge>
+      ),
     },
     {
       accessorKey: "nextFollowUpDate",
@@ -436,11 +501,7 @@ function makeColumns(
       accessorKey: "isDuplicate",
       header: "Duplicate",
       cell: ({ getValue }) =>
-        getValue() ? (
-          <span className="font-semibold">Potential duplicate</span>
-        ) : (
-          "—"
-        ),
+        getValue() ? <Badge variant="outline">Potential duplicate</Badge> : "—",
     },
   ];
 }

@@ -36,6 +36,33 @@ function fillActivity() {
     target: { value: "2026-10-24T10:00" },
   });
 }
+async function chooseOption(label: string, option: string) {
+  const trigger = screen.getByRole("combobox", { name: label });
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: "ArrowDown" });
+  const options = await screen.findAllByRole("option");
+  const targetIndex = options.findIndex(
+    (item) => item.textContent?.trim() === option,
+  );
+  if (targetIndex < 0) throw new Error(`Missing option: ${option}`);
+  await waitFor(() =>
+    expect(options).toContain(document.activeElement as HTMLElement),
+  );
+  let currentIndex = options.findIndex(
+    (item) => item === document.activeElement,
+  );
+  if (targetIndex < currentIndex) {
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "Home" });
+    await waitFor(() => expect(options[0]).toHaveFocus());
+    currentIndex = 0;
+  }
+  while (currentIndex < targetIndex) {
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "ArrowDown" });
+    currentIndex += 1;
+    await waitFor(() => expect(options[currentIndex]).toHaveFocus());
+  }
+  fireEvent.keyDown(document.activeElement ?? trigger, { key: "Enter" });
+}
 function requestBody(fetcher: ReturnType<typeof vi.fn>) {
   return JSON.parse(String(fetcher.mock.calls.at(-1)?.[1]?.body)) as Record<
     string,
@@ -83,9 +110,7 @@ describe("contact panel", () => {
   test("submits a note-only activity", async () => {
     const fetcher = renderPanel();
     fillActivity();
-    fireEvent.change(screen.getByLabelText("Activity type"), {
-      target: { value: "note" },
-    });
+    await chooseOption("Activity type", "Note only");
     fireEvent.change(screen.getByLabelText("Note (optional)"), {
       target: { value: "Left a message" },
     });
@@ -102,9 +127,7 @@ describe("contact panel", () => {
   test("sends a selected follow-up date and explicit clear", async () => {
     const fetcher = renderPanel();
     fillActivity();
-    fireEvent.change(screen.getByLabelText("Next follow-up"), {
-      target: { value: "set" },
-    });
+    await chooseOption("Next follow-up", "Set date");
     fireEvent.change(screen.getByLabelText("Follow-up date"), {
       target: { value: "2026-10-26" },
     });
@@ -115,9 +138,7 @@ describe("contact panel", () => {
       "2026-10-26",
     );
 
-    fireEvent.change(screen.getByLabelText("Next follow-up"), {
-      target: { value: "clear" },
-    });
+    await chooseOption("Next follow-up", "Clear date");
     fillActivity();
     fireEvent.click(screen.getByRole("button", { name: "Record activity" }));
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
@@ -127,9 +148,7 @@ describe("contact panel", () => {
   test("requires a follow-up date when the set-date option is selected", async () => {
     const fetcher = renderPanel();
     fillActivity();
-    fireEvent.change(screen.getByLabelText("Next follow-up"), {
-      target: { value: "set" },
-    });
+    await chooseOption("Next follow-up", "Set date");
     fireEvent.change(screen.getByLabelText("Follow-up date"), {
       target: { value: "2026-02-30" },
     });
@@ -177,7 +196,9 @@ describe("contact panel", () => {
     expect(screen.getByLabelText("Note (optional)")).toHaveValue(
       "Keep this note",
     );
-    expect(screen.getByLabelText("Activity type")).toHaveValue("call");
+    expect(
+      screen.getByRole("combobox", { name: "Activity type" }),
+    ).toHaveTextContent("Call");
   });
 
   test("associates required-field feedback and supports keyboard submission", async () => {

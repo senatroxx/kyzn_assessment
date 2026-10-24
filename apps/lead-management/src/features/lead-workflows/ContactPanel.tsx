@@ -5,8 +5,20 @@ import {
   activityResponseSchema,
   type LeadStatus,
 } from "@kyzn/shared";
+import { Alert, AlertDescription } from "@kyzn/ui/components/alert";
+import { Button } from "@kyzn/ui/components/button";
+import { Input } from "@kyzn/ui/components/input";
+import { Label } from "@kyzn/ui/components/label";
+import { Textarea } from "@kyzn/ui/components/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@kyzn/ui/components/select";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest, ApiRequestError } from "../../lib/api";
 import { leadQueryKeys } from "../../lib/query-keys";
@@ -41,11 +53,6 @@ const formSchema = z
     }
   });
 type FormValues = z.infer<typeof formSchema>;
-
-const controlClass =
-  "min-h-11 rounded border border-[#777] bg-white px-3 py-2 font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800";
-const buttonClass =
-  "min-h-11 rounded bg-[#243b2e] px-4 py-2 font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800 disabled:opacity-60";
 
 function localDateTimeValue(date: Date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
@@ -141,38 +148,52 @@ export function ContactPanel({
         noValidate
         onSubmit={form.handleSubmit(submit)}
       >
-        <label className="grid gap-1 font-medium" htmlFor="activity-type">
-          Activity type
-          <select
-            id="activity-type"
-            className={controlClass}
-            disabled={disabled}
-            aria-invalid={Boolean(form.formState.errors.type)}
-            aria-describedby={
-              form.formState.errors.type ? "activity-type-error" : undefined
-            }
-            {...form.register("type")}
-          >
-            <option value="call">Call</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="email">Email</option>
-            <option value="note">Note only</option>
-          </select>
-          {form.formState.errors.type && (
-            <span id="activity-type-error" role="alert">
-              {form.formState.errors.type.message}
-            </span>
+        <Controller
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <div className="grid gap-1 font-medium">
+              <Label htmlFor="activity-type">Activity type</Label>
+              <Select
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={disabled}
+              >
+                <SelectTrigger
+                  id="activity-type"
+                  ref={field.ref}
+                  aria-invalid={Boolean(form.formState.errors.type)}
+                  aria-describedby={
+                    form.formState.errors.type
+                      ? "activity-type-error"
+                      : undefined
+                  }
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="call">Call</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="note">Note only</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.formState.errors.type && (
+                <span id="activity-type-error" role="alert">
+                  {form.formState.errors.type.message}
+                </span>
+              )}
+            </div>
           )}
-        </label>
-        <label
+        />
+        <Label
           className="grid gap-1 font-medium"
           htmlFor="activity-occurred-at"
         >
           Occurred at
-          <input
+          <Input
             id="activity-occurred-at"
             type="datetime-local"
-            className={controlClass}
             disabled={disabled}
             aria-invalid={Boolean(form.formState.errors.occurredAt)}
             aria-describedby={
@@ -187,13 +208,12 @@ export function ContactPanel({
               {form.formState.errors.occurredAt.message}
             </span>
           )}
-        </label>
-        <label className="grid gap-1 font-medium" htmlFor="activity-note">
+        </Label>
+        <Label className="grid gap-1 font-medium" htmlFor="activity-note">
           Note (optional)
-          <textarea
+          <Textarea
             id="activity-note"
             rows={3}
-            className={controlClass}
             disabled={disabled}
             aria-invalid={Boolean(form.formState.errors.note)}
             aria-describedby={
@@ -201,30 +221,39 @@ export function ContactPanel({
             }
             {...form.register("note")}
           />
-        </label>
-        <label className="grid gap-1 font-medium" htmlFor="follow-up-mode">
-          Next follow-up
-          <select
-            id="follow-up-mode"
-            className={controlClass}
-            disabled={disabled}
-            {...form.register("followUpMode")}
-          >
-            <option value="unchanged">Leave as is</option>
-            <option value="set">Set date</option>
-            <option value="clear">Clear date</option>
-          </select>
-        </label>
+        </Label>
+        <Controller
+          control={form.control}
+          name="followUpMode"
+          render={({ field }) => (
+            <div className="grid gap-1 font-medium">
+              <Label htmlFor="follow-up-mode">Next follow-up</Label>
+              <Select
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={disabled}
+              >
+                <SelectTrigger id="follow-up-mode" ref={field.ref}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unchanged">Leave as is</SelectItem>
+                  <SelectItem value="set">Set date</SelectItem>
+                  <SelectItem value="clear">Clear date</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        />
         {form.watch("followUpMode") === "set" && (
-          <label
+          <Label
             className="grid gap-1 font-medium"
             htmlFor="next-follow-up-date"
           >
             Follow-up date
-            <input
+            <Input
               id="next-follow-up-date"
               type="date"
-              className={controlClass}
               disabled={disabled}
               aria-invalid={Boolean(form.formState.errors.nextFollowUpDate)}
               aria-describedby={
@@ -239,19 +268,23 @@ export function ContactPanel({
                 {form.formState.errors.nextFollowUpDate.message}
               </span>
             )}
-          </label>
+          </Label>
         )}
         {mutation.isPending && <p role="status">Recording activity…</p>}
-        {mutation.isError && <p role="alert">{errorText}</p>}
+        {mutation.isError && (
+          <Alert role="alert" variant="destructive">
+            <AlertDescription>{errorText}</AlertDescription>
+          </Alert>
+        )}
         {success && <p role="status">Activity recorded successfully.</p>}
         {(leadStatus === "converted" || leadStatus === "invalid") && (
           <p role="status">
             Activities cannot be recorded for this lead status.
           </p>
         )}
-        <button type="submit" className={buttonClass} disabled={disabled}>
+        <Button type="submit" disabled={disabled}>
           {mutation.isPending ? "Recording…" : "Record activity"}
-        </button>
+        </Button>
       </form>
     </section>
   );

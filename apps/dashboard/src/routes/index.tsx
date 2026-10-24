@@ -1,6 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { dashboardMetricsResponseSchema } from "@kyzn/shared";
+import { Alert, AlertDescription, AlertTitle } from "@kyzn/ui/components/alert";
+import { Button } from "@kyzn/ui/components/button";
+import { Card, CardContent, CardHeader } from "@kyzn/ui/components/card";
+import { Skeleton } from "@kyzn/ui/components/skeleton";
 import { apiBaseUrl } from "../lib/api";
 
 const metricsQueryKey = ["dashboard-metrics"];
@@ -48,32 +52,52 @@ function HomePage() {
           <h2 id="metrics-heading" className="text-lg font-semibold">
             Key metrics
           </h2>
-          <button
-            className="min-h-11 rounded px-3 text-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#334638] disabled:opacity-60"
+          <Button
+            className="underline underline-offset-4"
+            variant="ghost"
             type="button"
             onClick={() => void refetch()}
             disabled={isFetching}
           >
             {isFetching ? "Refreshing…" : "Refresh metrics"}
-          </button>
+          </Button>
         </div>
 
         {isPending ? (
-          <p role="status">Loading dashboard metrics…</p>
+          <div role="status" aria-label="Loading dashboard metrics">
+            <span className="sr-only">Loading dashboard metrics…</span>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {metrics.map(({ key }) => (
+                <Card key={key} className="min-w-0" aria-hidden="true">
+                  <CardContent className="space-y-3 pt-4 sm:pt-5">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-9 w-1/3" />
+                  </CardContent>
+                </Card>
+              ))}
+              <Card className="min-w-0" aria-hidden="true">
+                <CardContent className="space-y-3 pt-4 sm:pt-5">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-9 w-1/3" />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         ) : error ? (
-          <div role="alert" className="rounded border border-[#b65b48] p-4">
-            <p>
-              Dashboard metrics could not be loaded. Check the API connection
-              and try again.
-            </p>
-            <button
-              className="mt-3 min-h-11 rounded px-3 font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#334638]"
+          <Alert role="alert" variant="destructive">
+            <AlertTitle>Dashboard metrics could not be loaded.</AlertTitle>
+            <AlertDescription>
+              Check the API connection and try again.
+            </AlertDescription>
+            <Button
+              className="mt-3 underline underline-offset-4"
+              variant="ghost"
               type="button"
               onClick={() => void refetch()}
             >
               Try again
-            </button>
-          </div>
+            </Button>
+          </Alert>
         ) : data ? (
           <>
             {data.totalLeads === 0 && (
@@ -81,28 +105,35 @@ function HomePage() {
             )}
             <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {metrics.map(({ key, label }) => (
-                <div
-                  className="min-w-0 border border-[#d5d7cf] bg-white p-5"
-                  key={key}
-                >
-                  <dt className="text-sm text-[#555a53]">{label}</dt>
-                  <dd className="mt-2 text-3xl font-semibold tabular-nums">
-                    {data[key].toLocaleString()}
-                  </dd>
-                </div>
+                <Card className="min-w-0" key={key}>
+                  <CardHeader className="pb-0">
+                    <dt className="text-sm text-[#555a53]">{label}</dt>
+                  </CardHeader>
+                  <CardContent>
+                    <dd className="mt-2 text-3xl font-semibold tabular-nums">
+                      {data[key].toLocaleString()}
+                    </dd>
+                  </CardContent>
+                </Card>
               ))}
-              <div className="min-w-0 border border-[#d5d7cf] bg-white p-5">
-                <dt className="text-sm text-[#555a53]">Conversion rate</dt>
-                <dd className="mt-2 text-3xl font-semibold tabular-nums">
-                  {new Intl.NumberFormat("en-US", {
-                    maximumFractionDigits: 1,
-                    minimumFractionDigits: Number.isInteger(data.conversionRate)
-                      ? 0
-                      : 1,
-                  }).format(data.conversionRate)}
-                  %
-                </dd>
-              </div>
+              <Card className="min-w-0">
+                <CardHeader className="pb-0">
+                  <dt className="text-sm text-[#555a53]">Conversion rate</dt>
+                </CardHeader>
+                <CardContent>
+                  <dd className="mt-2 text-3xl font-semibold tabular-nums">
+                    {new Intl.NumberFormat("en-US", {
+                      maximumFractionDigits: 1,
+                      minimumFractionDigits: Number.isInteger(
+                        data.conversionRate,
+                      )
+                        ? 0
+                        : 1,
+                    }).format(data.conversionRate)}
+                    %
+                  </dd>
+                </CardContent>
+              </Card>
             </dl>
           </>
         ) : null}

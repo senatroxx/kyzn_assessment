@@ -1,5 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LeadStatus, Trial, Venue } from "@kyzn/shared";
+import { Alert, AlertDescription } from "@kyzn/ui/components/alert";
+import { Badge } from "@kyzn/ui/components/badge";
+import { Button } from "@kyzn/ui/components/button";
+import { Card, CardContent } from "@kyzn/ui/components/card";
+import { Input } from "@kyzn/ui/components/input";
+import { Label } from "@kyzn/ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@kyzn/ui/components/select";
+import { Skeleton } from "@kyzn/ui/components/skeleton";
 import {
   trialResponseSchema,
   trialUpdateSchema,
@@ -107,14 +121,18 @@ export function TrialPanel({
         Trials
       </h3>
       {venues.isPending && (
-        <p role="status" className="mt-2">
-          Loading venues…
-        </p>
+        <div role="status" className="mt-2 space-y-2">
+          <span className="sr-only">Loading venues…</span>
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-10 w-full max-w-xl" />
+        </div>
       )}
       {venues.isError && (
-        <p role="alert" className="mt-2">
-          Could not load venues. Retry by reloading this page.
-        </p>
+        <Alert role="alert" variant="destructive" className="mt-2">
+          <AlertDescription>
+            Could not load venues. Retry by reloading this page.
+          </AlertDescription>
+        </Alert>
       )}
       {mutation.isPending && (
         <p role="status" className="mt-2">
@@ -135,67 +153,78 @@ export function TrialPanel({
               trial.status === "scheduled" &&
               !["lost", "invalid"].includes(leadStatus);
             return (
-              <li key={trial.id} className="border border-[#d5d9d1] p-3">
-                <p className="font-medium">
-                  {trial.status.replaceAll("_", " ")} ·{" "}
-                  <time dateTime={trial.scheduledAt}>
-                    {dateTime(trial.scheduledAt)}
-                  </time>
-                </p>
-                <p className="mt-1 text-sm">
-                  Venue: {venueNames.get(trial.venueId) ?? trial.venueId}
-                </p>
-                {trial.completedAt && (
-                  <p className="mt-1 text-sm">
-                    Completed:{" "}
-                    <time dateTime={trial.completedAt}>
-                      {dateTime(trial.completedAt)}
-                    </time>
-                  </p>
-                )}
-                {trial.notes && <p className="mt-1">{trial.notes}</p>}
-                {scheduledAction && (
-                  <div className="mt-3 flex flex-wrap gap-4">
-                    {leadStatus !== "converted" && (
-                      <button
-                        className="underline focus-visible:outline-2"
-                        type="button"
-                        disabled={mutation.isPending}
-                        onClick={() => {
-                          setEditing(trial.id);
-                          setScheduledAt(toLocalInput(trial.scheduledAt));
-                          setVenueId(trial.venueId);
-                        }}
-                      >
-                        Reschedule
-                      </button>
+              <li key={trial.id}>
+                <Card>
+                  <CardContent className="p-3">
+                    <p className="font-medium">
+                      <Badge variant="outline">
+                        {trial.status.replaceAll("_", " ")}
+                      </Badge>{" "}
+                      ·{" "}
+                      <time dateTime={trial.scheduledAt}>
+                        {dateTime(trial.scheduledAt)}
+                      </time>
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Venue: {venueNames.get(trial.venueId) ?? trial.venueId}
+                    </p>
+                    {trial.completedAt && (
+                      <p className="mt-1 text-sm">
+                        Completed:{" "}
+                        <time dateTime={trial.completedAt}>
+                          {dateTime(trial.completedAt)}
+                        </time>
+                      </p>
                     )}
-                    <button
-                      className="underline focus-visible:outline-2"
-                      type="button"
-                      disabled={mutation.isPending}
-                      onClick={() => outcome(trial.id, "completed")}
-                    >
-                      Record attendance
-                    </button>
-                    <button
-                      className="underline focus-visible:outline-2"
-                      type="button"
-                      disabled={mutation.isPending}
-                      onClick={() => outcome(trial.id, "cancelled")}
-                    >
-                      Cancel trial
-                    </button>
-                    <button
-                      className="underline focus-visible:outline-2"
-                      type="button"
-                      disabled={mutation.isPending}
-                      onClick={() => outcome(trial.id, "no_show")}
-                    >
-                      Mark no-show
-                    </button>
-                  </div>
-                )}
+                    {trial.notes && <p className="mt-1">{trial.notes}</p>}
+                    {scheduledAction && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {leadStatus !== "converted" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            disabled={mutation.isPending}
+                            onClick={() => {
+                              setEditing(trial.id);
+                              setScheduledAt(toLocalInput(trial.scheduledAt));
+                              setVenueId(trial.venueId);
+                            }}
+                          >
+                            Reschedule
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          disabled={mutation.isPending}
+                          onClick={() => outcome(trial.id, "completed")}
+                        >
+                          Record attendance
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          disabled={mutation.isPending}
+                          onClick={() => outcome(trial.id, "cancelled")}
+                        >
+                          Cancel trial
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          disabled={mutation.isPending}
+                          onClick={() => outcome(trial.id, "no_show")}
+                        >
+                          Mark no-show
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </li>
             );
           })}
@@ -206,37 +235,38 @@ export function TrialPanel({
           <h4 className="font-medium">
             {editing ? "Reschedule trial" : "Schedule a trial"}
           </h4>
-          <label className="grid gap-1">
-            Venue
-            <select
-              required
+          <div className="grid gap-1">
+            <Label htmlFor="trial-venue">Venue</Label>
+            <Select
               value={venueId}
-              onChange={(event) => setVenueId(event.target.value)}
-              className="border border-[#858b81] p-2 focus-visible:outline-2"
+              onValueChange={setVenueId}
               disabled={venues.isPending || mutation.isPending}
             >
-              <option value="">Choose a venue</option>
-              {(venues.data?.data ?? []).map((venue) => (
-                <option key={venue.id} value={venue.id}>
-                  {venue.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1">
+              <SelectTrigger id="trial-venue">
+                <SelectValue placeholder="Choose a venue" />
+              </SelectTrigger>
+              <SelectContent>
+                {(venues.data?.data ?? []).map((venue) => (
+                  <SelectItem key={venue.id} value={venue.id}>
+                    {venue.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Label className="grid gap-1" htmlFor="trial-scheduled-at">
             Scheduled time
-            <input
+            <Input
+              id="trial-scheduled-at"
               required
               type="datetime-local"
               value={scheduledAt}
               onChange={(event) => setScheduledAt(event.target.value)}
-              className="border border-[#858b81] p-2 focus-visible:outline-2"
               disabled={mutation.isPending}
             />
-          </label>
+          </Label>
           <div className="flex gap-4">
-            <button
-              className="border border-[#31634c] px-3 py-2 focus-visible:outline-2"
+            <Button
               type="submit"
               disabled={
                 mutation.isPending || venues.isPending || venues.isError
@@ -247,10 +277,10 @@ export function TrialPanel({
                 : editing
                   ? "Save schedule"
                   : "Schedule trial"}
-            </button>
+            </Button>
             {editing && (
-              <button
-                className="underline focus-visible:outline-2"
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => {
                   setEditing(null);
@@ -258,15 +288,17 @@ export function TrialPanel({
                 }}
               >
                 Stop rescheduling
-              </button>
+              </Button>
             )}
           </div>
         </form>
       )}
       {error && (
-        <p role="alert" className="mt-3">
-          {error}. Your entries are still here.
-        </p>
+        <Alert role="alert" variant="destructive" className="mt-3">
+          <AlertDescription>
+            {error}. Your entries are still here.
+          </AlertDescription>
+        </Alert>
       )}
     </section>
   );

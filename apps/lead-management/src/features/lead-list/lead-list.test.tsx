@@ -55,6 +55,34 @@ function setup(path = "/leads") {
   return fetchMock;
 }
 
+async function chooseOption(label: string, option: string) {
+  const trigger = screen.getByRole("combobox", { name: label });
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: "ArrowDown" });
+  const options = await screen.findAllByRole("option");
+  const targetIndex = options.findIndex(
+    (item) => item.textContent?.trim() === option,
+  );
+  if (targetIndex < 0) throw new Error(`Missing option: ${option}`);
+  await waitFor(() =>
+    expect(options).toContain(document.activeElement as HTMLElement),
+  );
+  let currentIndex = options.findIndex(
+    (item) => item === document.activeElement,
+  );
+  if (targetIndex < currentIndex) {
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "Home" });
+    await waitFor(() => expect(options[0]).toHaveFocus());
+    currentIndex = 0;
+  }
+  while (currentIndex < targetIndex) {
+    fireEvent.keyDown(document.activeElement ?? trigger, { key: "ArrowDown" });
+    currentIndex += 1;
+    await waitFor(() => expect(options[currentIndex]).toHaveFocus());
+  }
+  fireEvent.keyDown(document.activeElement ?? trigger, { key: "Enter" });
+}
+
 afterEach(() => {
   cleanup();
   queryClient.clear();
@@ -115,6 +143,18 @@ describe("server-backed lead discovery", () => {
           "ayu@example.com",
         ),
       { timeout: 1500 },
+    );
+    await chooseOption("Status", "lost");
+    await waitFor(() =>
+      expect(new URLSearchParams(window.location.search).get("status")).toBe(
+        "lost",
+      ),
+    );
+    await chooseOption("Status", "All statuses");
+    await waitFor(() =>
+      expect(new URLSearchParams(window.location.search).get("status")).toBe(
+        null,
+      ),
     );
     fireEvent.click(screen.getByRole("button", { name: /Next follow-up/ }));
     await waitFor(() =>

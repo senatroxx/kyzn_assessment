@@ -1,5 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Alert, AlertDescription } from "@kyzn/ui/components/alert";
+import { Button } from "@kyzn/ui/components/button";
+import { Input } from "@kyzn/ui/components/input";
+import { Label } from "@kyzn/ui/components/label";
 import {
   conversionCreateSchema,
   conversionResponseSchema,
@@ -107,13 +111,14 @@ export function ConversionPanel({
       ) : !confirming ? (
         <>
           <p className="mt-2">No conversion recorded.</p>
-          <button
+          <Button
             type="button"
-            className="mt-2 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="mt-2"
+            variant="ghost"
             onClick={() => setConfirming(true)}
           >
             Record paid membership
-          </button>
+          </Button>
         </>
       ) : (
         <form className="mt-2 space-y-3" onSubmit={submit}>
@@ -122,54 +127,52 @@ export function ConversionPanel({
             record; no payment is processed.
           </p>
           <div>
-            <label htmlFor="conversion-note" className="block text-sm">
+            <Label htmlFor="conversion-note" className="block text-sm">
               Note (optional)
-            </label>
-            <input
+            </Label>
+            <Input
               ref={noteRef}
               id="conversion-note"
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              className="mt-1 rounded-sm border border-[#aeb5aa] p-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="mt-1"
             />
           </div>
           <div>
-            <label htmlFor="membership-reference" className="block text-sm">
+            <Label htmlFor="membership-reference" className="block text-sm">
               Membership reference (optional)
-            </label>
-            <input
+            </Label>
+            <Input
               id="membership-reference"
               value={membershipReference}
               onChange={(event) => setMembershipReference(event.target.value)}
-              className="mt-1 rounded-sm border border-[#aeb5aa] p-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="mt-1"
             />
           </div>
           {mutation.isError && (
-            <p role="alert">
-              {mutation.error instanceof ApiRequestError
-                ? mutation.error.message
-                : "Could not record the conversion. Try again."}
-            </p>
+            <Alert role="alert" variant="destructive">
+              <AlertDescription>
+                {mutation.error instanceof ApiRequestError
+                  ? mutation.error.message
+                  : "Could not record the conversion. Try again."}
+              </AlertDescription>
+            </Alert>
           )}
           <div className="flex gap-4">
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="underline underline-offset-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
+            <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? "Recording…" : "Confirm conversion"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               disabled={mutation.isPending}
               onClick={() => {
                 setConfirming(false);
                 mutation.reset();
               }}
-              className="underline underline-offset-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2"
+              variant="outline"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       )}

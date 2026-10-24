@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import {
   consultantsResponseSchema,
   duplicateQuerySchema,
@@ -13,6 +13,20 @@ import {
   type Lead,
   type LeadCreateInput,
 } from "@kyzn/shared";
+import { Alert, AlertDescription, AlertTitle } from "@kyzn/ui/components/alert";
+import { Badge } from "@kyzn/ui/components/badge";
+import { Button } from "@kyzn/ui/components/button";
+import { Card, CardContent } from "@kyzn/ui/components/card";
+import { Input } from "@kyzn/ui/components/input";
+import { Label } from "@kyzn/ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@kyzn/ui/components/select";
+import { Skeleton } from "@kyzn/ui/components/skeleton";
 import { apiRequest, ApiRequestError } from "../../lib/api";
 import { leadQueryKeys } from "../../lib/query-keys";
 
@@ -178,9 +192,21 @@ export function LeadForm({ leadId }: Props) {
     }
   }
 
-  if (editing && detail.isPending) return <p role="status">Loading lead…</p>;
+  if (editing && detail.isPending)
+    return (
+      <div role="status" className="space-y-3">
+        <span className="sr-only">Loading lead…</span>
+        <Skeleton className="h-7 w-40" />
+        <Skeleton className="h-11 w-full max-w-xl" />
+        <Skeleton className="h-11 w-full max-w-xl" />
+      </div>
+    );
   if (editing && detail.isError)
-    return <p role="alert">{detail.error.message}</p>;
+    return (
+      <Alert role="alert" variant="destructive">
+        <AlertDescription>{detail.error.message}</AlertDescription>
+      </Alert>
+    );
   const lookupFailure = venues.isError || consultants.isError;
 
   return (
@@ -189,46 +215,60 @@ export function LeadForm({ leadId }: Props) {
         {editing ? "Edit lead" : "New lead"}
       </h2>
       {editing && detail.data && (
-        <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="font-semibold">Lead ID</dt>
-            <dd className="break-all">{detail.data.data.id}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">Created</dt>
-            <dd>
-              <time dateTime={detail.data.data.createdAt}>
-                {new Date(detail.data.data.createdAt).toLocaleString()}
-              </time>
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold">Status</dt>
-            <dd>{detail.data.data.status.replaceAll("_", " ")}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">Last contacted</dt>
-            <dd>
-              {detail.data.data.lastContactAt ? (
-                <time dateTime={detail.data.data.lastContactAt}>
-                  {new Date(detail.data.data.lastContactAt).toLocaleString()}
-                </time>
-              ) : (
-                "Not recorded"
-              )}
-            </dd>
-          </div>
-        </dl>
+        <Card className="mt-3">
+          <CardContent className="p-4">
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="font-semibold">Lead ID</dt>
+                <dd className="break-all">{detail.data.data.id}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Created</dt>
+                <dd>
+                  <time dateTime={detail.data.data.createdAt}>
+                    {new Date(detail.data.data.createdAt).toLocaleString()}
+                  </time>
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Status</dt>
+                <dd>
+                  <Badge variant="secondary">
+                    {detail.data.data.status.replaceAll("_", " ")}
+                  </Badge>
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Last contacted</dt>
+                <dd>
+                  {detail.data.data.lastContactAt ? (
+                    <time dateTime={detail.data.data.lastContactAt}>
+                      {new Date(
+                        detail.data.data.lastContactAt,
+                      ).toLocaleString()}
+                    </time>
+                  ) : (
+                    "Not recorded"
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
       )}
       {lookupFailure ? (
-        <p role="alert" className="mt-4">
-          Could not load venues or consultants. Please retry the page.
-        </p>
+        <Alert role="alert" variant="destructive" className="mt-4">
+          <AlertDescription>
+            Could not load venues or consultants. Please retry the page.
+          </AlertDescription>
+        </Alert>
       ) : null}
       {!lookupFailure && (venues.isPending || consultants.isPending) ? (
-        <p role="status" className="mt-4">
-          Loading venues and consultants…
-        </p>
+        <div role="status" className="mt-4 space-y-2">
+          <span className="sr-only">Loading venues and consultants…</span>
+          <Skeleton className="h-11 w-full max-w-2xl" />
+          <Skeleton className="h-11 w-full max-w-2xl" />
+        </div>
       ) : null}
       <form
         className="mt-5 grid grid-cols-1 gap-4"
@@ -255,46 +295,52 @@ export function LeadForm({ leadId }: Props) {
           type="email"
           autoComplete="email"
         />
-        <label className="grid gap-1 font-medium" htmlFor="source">
-          Lead source
-          <select
-            id="source"
-            className={controlClass}
-            aria-invalid={Boolean(form.formState.errors.source)}
-            aria-describedby={
-              form.formState.errors.source ? "source-error" : undefined
-            }
-            {...form.register("source")}
-          >
-            {Object.entries(sourceLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          {form.formState.errors.source && (
-            <span
-              id="source-error"
-              className="text-sm font-normal text-red-700"
-              role="alert"
-            >
-              {form.formState.errors.source.message}
-            </span>
+        <Controller
+          control={form.control}
+          name="source"
+          render={({ field }) => (
+            <div className="grid gap-1 font-medium">
+              <Label htmlFor="source">Lead source</Label>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  id="source"
+                  ref={field.ref}
+                  aria-invalid={Boolean(form.formState.errors.source)}
+                  aria-describedby={
+                    form.formState.errors.source ? "source-error" : undefined
+                  }
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(sourceLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.source && (
+                <span id="source-error" role="alert">
+                  {form.formState.errors.source.message}
+                </span>
+              )}
+            </div>
           )}
-        </label>
+        />
         <LookupSelect
           label="Interested venue"
           name="venueId"
           items={venues.data?.data ?? []}
           error={form.formState.errors.venueId?.message}
-          register={form.register("venueId")}
+          form={form}
         />
         <LookupSelect
           label="Assigned consultant"
           name="consultantId"
           items={consultants.data?.data ?? []}
           error={form.formState.errors.consultantId?.message}
-          register={form.register("consultantId")}
+          form={form}
         />
         <Field
           label="Next follow-up date (optional)"
@@ -303,39 +349,40 @@ export function LeadForm({ leadId }: Props) {
           type="date"
         />
         {duplicates?.length ? (
-          <div
-            className="rounded border border-amber-700 bg-amber-50 p-3"
-            role="status"
-            aria-live="polite"
-          >
-            <p className="font-semibold">
+          <Alert role="status" aria-live="polite">
+            <AlertTitle>
               Possible duplicate leads. You can still save this lead.
-            </p>
-            <ul className="mt-2 list-disc pl-5">
-              {duplicates.map((match) => (
-                <li key={match.id}>
-                  <Link
-                    className="underline underline-offset-2"
-                    to="/leads/$leadId"
-                    params={{ leadId: match.id }}
-                  >
-                    {match.fullName}
-                  </Link>{" "}
-                  matches {match.matchedFields.join(" and ")}
-                </li>
-              ))}
-            </ul>
-          </div>
+            </AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc pl-5">
+                {duplicates.map((match) => (
+                  <li key={match.id}>
+                    <Link
+                      className="underline underline-offset-2"
+                      to="/leads/$leadId"
+                      params={{ leadId: match.id }}
+                    >
+                      {match.fullName}
+                    </Link>{" "}
+                    matches {match.matchedFields.join(" and ")}
+                  </li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
         ) : null}
         {duplicatePending && <p role="status">Checking for matching leads…</p>}
         {duplicateError && (
           <p role="status">Duplicate check unavailable: {duplicateError}</p>
         )}
-        {submitError && <p role="alert">{submitError}</p>}
+        {submitError && (
+          <Alert role="alert" variant="destructive">
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        )}
         {savedLead && <p role="status">Lead saved successfully.</p>}
         <div className="flex flex-wrap gap-4 pt-2">
-          <button
-            className={buttonClass}
+          <Button
             type="submit"
             disabled={
               form.formState.isSubmitting ||
@@ -349,7 +396,7 @@ export function LeadForm({ leadId }: Props) {
               : editing
                 ? "Save changes"
                 : "Create lead"}
-          </button>
+          </Button>
           {editing ? (
             <Link
               className="rounded px-3 py-2 underline underline-offset-2 focus-visible:outline focus-visible:outline-2"
@@ -378,11 +425,6 @@ async function loadDuplicates(query: string) {
   ).data;
 }
 
-const controlClass =
-  "min-h-11 rounded border border-[#777] bg-white px-3 py-2 font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800";
-const buttonClass =
-  "min-h-11 rounded bg-[#243b2e] px-4 py-2 font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800 disabled:opacity-60";
-
 function Field({
   label,
   name,
@@ -399,13 +441,12 @@ function Field({
   const id = name;
   const error = form.formState.errors[name]?.message;
   return (
-    <label className="grid gap-1 font-medium" htmlFor={id}>
+    <Label className="grid gap-1 font-medium" htmlFor={id}>
       {label}
-      <input
+      <Input
         id={id}
         type={type}
         autoComplete={autoComplete}
-        className={controlClass}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
         {...form.register(
@@ -424,7 +465,7 @@ function Field({
           {error}
         </span>
       )}
-    </label>
+    </Label>
   );
 }
 
@@ -433,41 +474,54 @@ function LookupSelect({
   name,
   items,
   error,
-  register,
+  form,
 }: {
   label: string;
-  name: string;
+  name: "venueId" | "consultantId";
   items: { id: string; name: string; active: boolean }[];
   error?: string;
-  register: ReturnType<ReturnType<typeof useForm<LeadCreateInput>>["register"]>;
+  form: ReturnType<typeof useForm<LeadCreateInput>>;
 }) {
   return (
-    <label className="grid gap-1 font-medium" htmlFor={name}>
-      {label}
-      <select
-        id={name}
-        className={controlClass}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${name}-error` : undefined}
-        {...register}
-      >
-        <option value="">Choose {label.toLowerCase()}</option>
-        {items.map((item) => (
-          <option key={item.id} value={item.id} disabled={!item.active}>
-            {item.name}
-            {item.active ? "" : " (inactive)"}
-          </option>
-        ))}
-      </select>
-      {error && (
-        <span
-          id={`${name}-error`}
-          className="text-sm font-normal text-red-700"
-          role="alert"
-        >
-          {error}
-        </span>
+    <Controller
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <div className="grid gap-1 font-medium">
+          <Label htmlFor={name}>{label}</Label>
+          <Select
+            value={field.value}
+            onValueChange={field.onChange}
+            disabled={items.length === 0}
+          >
+            <SelectTrigger
+              id={name}
+              ref={field.ref}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${name}-error` : undefined}
+            >
+              <SelectValue placeholder={`Choose ${label.toLowerCase()}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {items.map((item) => (
+                <SelectItem
+                  key={item.id}
+                  value={item.id}
+                  disabled={!item.active}
+                >
+                  {item.name}
+                  {item.active ? "" : " (inactive)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {error && (
+            <span id={`${name}-error`} role="alert">
+              {error}
+            </span>
+          )}
+        </div>
       )}
-    </label>
+    />
   );
 }
