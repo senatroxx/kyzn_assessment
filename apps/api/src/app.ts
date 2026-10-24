@@ -2,6 +2,8 @@ import cors from "cors";
 import express from "express";
 import { corsOrigins } from "./config/env.ts";
 import { errorHandler } from "./middleware/errors.ts";
+import { duplicatesRouter } from "./modules/leads/duplicates/router.ts";
+import { leadListRouter } from "./modules/leads/list/router.ts";
 import { leadsRouter } from "./modules/leads/router.ts";
 import type { createDatabase } from "./db/client.ts";
 
@@ -17,7 +19,11 @@ export function createApp(db?: ReturnType<typeof createDatabase>["db"]) {
   app.get("/api/health", (_request, response) => {
     response.json({ data: { status: "ok" } });
   });
-  if (db) app.use("/api/v1", leadsRouter(db));
+  if (db) {
+    app.use("/api/v1/leads/duplicates", duplicatesRouter(db));
+    app.use("/api/v1/leads", leadListRouter(db));
+    app.use("/api/v1", leadsRouter(db));
+  }
   app.use((_request, response) => {
     response
       .status(404)

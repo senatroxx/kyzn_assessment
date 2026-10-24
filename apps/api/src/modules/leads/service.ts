@@ -2,13 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { LeadCreateInput, LeadUpdateInput } from "@kyzn/shared";
 import type { createDatabase } from "../../db/client.ts";
 import { HttpError } from "../../middleware/errors.ts";
+import { normalizeEmail, normalizePhone } from "./contact-normalization.ts";
+import { duplicateRepository } from "./duplicates/repository.ts";
 import { leadRepository } from "./repository.ts";
 
 type Db = ReturnType<typeof createDatabase>["db"];
-const phoneKey = (phone: string) => {
-  const digits = phone.replace(/[^0-9]/g, "");
-  return phone.trim().startsWith("+") ? `+${digits}` : `+62${digits.slice(1)}`;
-};
 const present = (
   row: NonNullable<
     Awaited<ReturnType<ReturnType<typeof leadRepository>["find"]>>
@@ -30,6 +28,7 @@ const present = (
 
 export function leadService(db: Db) {
   const repo = leadRepository(db);
+  const duplicateRepo = duplicateRepository(db);
   const resolveRefs = async (input: {
     venueId?: string;
     consultantId?: string;
@@ -48,13 +47,33 @@ export function leadService(db: Db) {
   };
   const detail = async (
     row: NonNullable<Awaited<ReturnType<typeof repo.find>>>,
-  ) => ({
-    ...present(row),
-    activities: [],
-    trials: [],
-    conversion: (await repo.conversion(row.id)) ?? null,
-    duplicateMatches: [],
-  });
+  ) => {
+    const matches = await duplicateRepo.find(
+      row.phoneNormalized,
+      row.emailNormalized,
+      row.id,
+    );
+    return {
+      ...present(row),
+      activities: [],
+      trials: [],
+      conversion: (await repo.conversion(row.id)) ?? null,
+      duplicateMatches: matches.map((match) => ({
+        id: match.id,
+        fullName: match.fullName,
+        phone: match.phone,
+        email: match.email,
+        matchedFields: [
+          ...(row.phoneNormalized === match.phoneNormalized
+            ? (["phone"] as const)
+            : []),
+          ...(row.emailNormalized === match.emailNormalized
+            ? (["email"] as const)
+            : []),
+        ],
+      })),
+    };
+  };
   return {
     async create(input: LeadCreateInput) {
       await resolveRefs(input);
@@ -63,9 +82,9 @@ export function leadService(db: Db) {
         id: randomUUID(),
         fullName: input.fullName.trim(),
         phone: input.phone.trim(),
-        phoneNormalized: phoneKey(input.phone),
+        phoneNormalized: normalizePhone(input.phone),
         email: input.email.trim(),
-        emailNormalized: input.email.trim().toLowerCase(),
+        emailNormalized: normalizeEmail(input.email),
         source: input.source,
         venueId: input.venueId,
         consultantId: input.consultantId,
@@ -94,13 +113,13 @@ export function leadService(db: Db) {
       if (input.phone !== undefined) {
         Object.assign(patch, {
           phone: input.phone.trim(),
-          phoneNormalized: phoneKey(input.phone),
+          phoneNormalized: normalizePhone(input.phone),
         });
       }
       if (input.email !== undefined) {
         Object.assign(patch, {
           email: input.email.trim(),
-          emailNormalized: input.email.trim().toLowerCase(),
+          emailNormalized: normalizeEmail(input.email),
         });
       }
       const row = await repo.update(id, patch);
