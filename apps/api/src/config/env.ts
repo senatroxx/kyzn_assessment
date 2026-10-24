@@ -10,6 +10,17 @@ const envSchema = z.object({
   API_CORS_ORIGINS: z
     .string()
     .default("http://localhost:3000,http://localhost:3001"),
+  BUSINESS_TIME_ZONE: z
+    .string()
+    .default("Asia/Jakarta")
+    .refine((value) => {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Expected a valid IANA timezone"),
   DATABASE_PATH: z
     .string()
     .default(

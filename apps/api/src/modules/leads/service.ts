@@ -2,9 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { LeadCreateInput, LeadUpdateInput } from "@kyzn/shared";
 import type { createDatabase } from "../../db/client.ts";
 import { HttpError } from "../../middleware/errors.ts";
+import { activityRepository } from "./activities/repository.ts";
 import { normalizeEmail, normalizePhone } from "./contact-normalization.ts";
 import { duplicateRepository } from "./duplicates/repository.ts";
 import { leadRepository } from "./repository.ts";
+import { trialRepository } from "./trials/repository.ts";
 
 type Db = ReturnType<typeof createDatabase>["db"];
 const present = (
@@ -29,6 +31,8 @@ const present = (
 export function leadService(db: Db) {
   const repo = leadRepository(db);
   const duplicateRepo = duplicateRepository(db);
+  const activitiesRepo = activityRepository(db);
+  const trialsRepo = trialRepository(db);
   const resolveRefs = async (input: {
     venueId?: string;
     consultantId?: string;
@@ -48,16 +52,17 @@ export function leadService(db: Db) {
   const detail = async (
     row: NonNullable<Awaited<ReturnType<typeof repo.find>>>,
   ) => {
-    const matches = await duplicateRepo.find(
-      row.phoneNormalized,
-      row.emailNormalized,
-      row.id,
-    );
+    const [activities, trials, conversion, matches] = await Promise.all([
+      activitiesRepo.listForLead(row.id),
+      trialsRepo.listForLead(row.id),
+      repo.conversion(row.id),
+      duplicateRepo.find(row.phoneNormalized, row.emailNormalized, row.id),
+    ]);
     return {
       ...present(row),
-      activities: [],
-      trials: [],
-      conversion: (await repo.conversion(row.id)) ?? null,
+      activities,
+      trials,
+      conversion: conversion ?? null,
       duplicateMatches: matches.map((match) => ({
         id: match.id,
         fullName: match.fullName,

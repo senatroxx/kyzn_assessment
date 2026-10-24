@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 .vite/
+**/.tanstack/
 .env
 .env.*
 !.env.example
