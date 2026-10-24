@@ -10,7 +10,9 @@
     "lint": "eslint src tests drizzle.config.ts",
     "test": "bun test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "bun src/db/migrate.ts"
+    "db:migrate": "bun src/db/migrate.ts",
+    "db:seed": "bun src/db/seed-cli.ts",
+    "db:reset": "bun src/db/reset-cli.ts"
   },
   "dependencies": {
     "@kyzn/shared": "workspace:*",
