@@ -59,9 +59,11 @@ body {
   background: var(--background);
 }
 
-button,
-a {
-  color: inherit;
+@layer base {
+  button,
+  a {
+    color: inherit;
+  }
 }
 
 :focus-visible {
