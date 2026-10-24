@@ -83,6 +83,22 @@ async function chooseOption(label: string, option: string) {
   fireEvent.keyDown(document.activeElement ?? trigger, { key: "Enter" });
 }
 
+function pressEnter(button: HTMLElement) {
+  button.focus();
+  fireEvent.keyDown(button, { key: "Enter" });
+  // JSDOM does not synthesize the browser's native Enter activation.
+  button.click();
+}
+
+function findSortControl(label: string) {
+  const button = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("th button[aria-label]"),
+  ).find((candidate) => candidate.getAttribute("aria-label") === label);
+  const header = button?.closest("th");
+  if (!button || !header) throw new Error(`Missing sort control: ${label}`);
+  return { button, header };
+}
+
 afterEach(() => {
   cleanup();
   queryClient.clear();
@@ -114,6 +130,21 @@ describe("server-backed lead discovery", () => {
     expect(screen.getByText("Potential duplicate")).toBeInTheDocument();
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
+    expect(document.querySelectorAll("th")).toHaveLength(7);
+    expect(document.querySelectorAll("th button[aria-label]")).toHaveLength(2);
+    expect(
+      findSortControl(
+        "Next follow-up sorted ascending; activate to sort descending",
+      ).header,
+    ).toHaveAttribute("aria-sort", "ascending");
+    expect(
+      findSortControl("Sort by Created date ascending").header,
+    ).not.toHaveAttribute("aria-sort");
+    expect(
+      document
+        .querySelector('[role="group"][aria-label="Sort leads"]')
+        ?.querySelectorAll("button"),
+    ).toHaveLength(2);
   });
 
   test("updates URL for search, sorting and paging; clear removes filters", async () => {
@@ -156,25 +187,64 @@ describe("server-backed lead discovery", () => {
         null,
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Next follow-up/ }));
+    expect(
+      findSortControl(
+        "Created date sorted descending; activate to sort ascending",
+      ).header,
+    ).toHaveAttribute("aria-sort", "descending");
+    expect(
+      findSortControl("Sort by Next follow-up descending").header,
+    ).not.toHaveAttribute("aria-sort");
+    fireEvent.click(
+      findSortControl("Sort by Next follow-up descending").button,
+    );
     await waitFor(() =>
       expect(new URLSearchParams(window.location.search).get("sortBy")).toBe(
         "nextFollowUpDate",
       ),
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Change sort order to ascending" }),
+    expect(new URLSearchParams(window.location.search).get("sortOrder")).toBe(
+      "desc",
+    );
+    await waitFor(() =>
+      expect(
+        findSortControl(
+          "Next follow-up sorted descending; activate to sort ascending",
+        ).header,
+      ).toHaveAttribute("aria-sort", "descending"),
+    );
+    pressEnter(
+      findSortControl(
+        "Next follow-up sorted descending; activate to sort ascending",
+      ).button,
     );
     await waitFor(() =>
       expect(new URLSearchParams(window.location.search).get("sortOrder")).toBe(
         "asc",
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Created date/ }));
+    await waitFor(() =>
+      expect(
+        findSortControl(
+          "Next follow-up sorted ascending; activate to sort descending",
+        ).header,
+      ).toHaveAttribute("aria-sort", "ascending"),
+    );
+    fireEvent.click(findSortControl("Sort by Created date ascending").button);
     await waitFor(() =>
       expect(new URLSearchParams(window.location.search).get("sortBy")).toBe(
         "createdAt",
       ),
+    );
+    expect(new URLSearchParams(window.location.search).get("sortOrder")).toBe(
+      "asc",
+    );
+    await waitFor(() =>
+      expect(
+        findSortControl(
+          "Created date sorted ascending; activate to sort descending",
+        ).header,
+      ).toHaveAttribute("aria-sort", "ascending"),
     );
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() => expect(window.location.search).toContain("page=2"));

@@ -43,6 +43,7 @@ const sortLabels = {
   createdAt: "Created date",
   nextFollowUpDate: "Next follow-up",
 } as const;
+const sortableColumns = ["createdAt", "nextFollowUpDate"] as const;
 
 function listPath(query: LeadListQuery) {
   const params = new URLSearchParams();
@@ -125,28 +126,43 @@ export function LeadList() {
     search.search || search.source || search.consultantId || search.status,
   );
   const data = listQuery.data;
-  const sortButton = (sortBy: LeadListQuery["sortBy"]) => (
-    <Button
-      type="button"
-      className="min-h-11"
-      variant="outline"
-      size="sm"
-      aria-pressed={search.sortBy === sortBy}
-      onClick={() => updateQuery({ sortBy, page: 1 })}
-    >
-      {sortLabels[sortBy]}
-      {search.sortBy === sortBy
-        ? search.sortOrder === "asc"
-          ? " ↑"
-          : " ↓"
-        : ""}
-    </Button>
-  );
-  const toggleSortOrder = () =>
-    updateQuery({
-      sortOrder: search.sortOrder === "asc" ? "desc" : "asc",
-      page: 1,
-    });
+  const sortButton = (sortBy: (typeof sortableColumns)[number]) => {
+    const active = search.sortBy === sortBy;
+    const direction = search.sortOrder === "asc" ? "ascending" : "descending";
+    const nextDirection =
+      direction === "ascending" ? "descending" : "ascending";
+    const label = active
+      ? `${sortLabels[sortBy]} sorted ${direction}; activate to sort ${nextDirection}`
+      : `Sort by ${sortLabels[sortBy]} ${direction}`;
+
+    return (
+      <Button
+        type="button"
+        className="min-h-11"
+        variant="ghost"
+        size="sm"
+        aria-label={label}
+        onClick={() =>
+          updateQuery({
+            sortBy,
+            sortOrder: active
+              ? search.sortOrder === "asc"
+                ? "desc"
+                : "asc"
+              : search.sortOrder,
+            page: 1,
+          })
+        }
+      >
+        {sortLabels[sortBy]}
+        {active && (
+          <span aria-hidden="true">
+            {search.sortOrder === "asc" ? " ↑" : " ↓"}
+          </span>
+        )}
+      </Button>
+    );
+  };
 
   return (
     <section aria-labelledby="list-heading">
@@ -253,23 +269,6 @@ export function LeadList() {
         </div>
       </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div
-          className="flex flex-wrap items-center gap-2"
-          aria-label="Sort leads"
-        >
-          <span className="text-sm">Sort:</span>
-          {sortButton("createdAt")}
-          {sortButton("nextFollowUpDate")}
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={toggleSortOrder}
-            aria-label={`Change sort order to ${search.sortOrder === "asc" ? "descending" : "ascending"}`}
-          >
-            {search.sortOrder === "asc" ? "Ascending" : "Descending"}
-          </Button>
-        </div>
         <Button
           type="button"
           variant="outline"
@@ -350,24 +349,46 @@ export function LeadList() {
       {data && rows.length > 0 ? (
         <>
           <div className="w-full overflow-hidden rounded-sm border border-[#d5d9d1]">
+            <div
+              role="group"
+              aria-label="Sort leads"
+              className="flex flex-wrap gap-2 p-2 sm:hidden"
+            >
+              {sortButton("createdAt")}
+              {sortButton("nextFollowUpDate")}
+            </div>
             <Table className="w-full text-left text-xs sm:table-fixed sm:text-sm">
               <TableHeader className="hidden bg-[#f1f3ef] sm:table-header-group">
                 {table.getHeaderGroups().map((group) => (
                   <TableRow key={group.id}>
-                    {group.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        scope="col"
-                        className="break-words p-2 font-semibold sm:p-3"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
+                    {group.headers.map((header) => {
+                      const sortBy = sortableColumns.find(
+                        (column) => column === header.id,
+                      );
+                      return (
+                        <TableHead
+                          key={header.id}
+                          scope="col"
+                          aria-sort={
+                            sortBy && search.sortBy === sortBy
+                              ? search.sortOrder === "asc"
+                                ? "ascending"
+                                : "descending"
+                              : undefined
+                          }
+                          className="break-words p-2 font-semibold sm:p-3"
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : sortBy
+                              ? sortButton(sortBy)
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext(),
+                                )}
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 ))}
               </TableHeader>
