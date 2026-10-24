@@ -25,6 +25,13 @@ const lead = {
   lastContactAt: null,
   nextFollowUpDate: null,
 };
+const leadDetail = {
+  ...lead,
+  activities: [],
+  trials: [],
+  conversion: null,
+  duplicateMatches: [],
+};
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -76,6 +83,33 @@ describe("lead forms", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  test("focuses the first invalid field when submitting an empty form", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((url: string) =>
+        url.endsWith("/venues")
+          ? json({ data: [venue] })
+          : json({ data: [consultant] }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<App />);
+    await screen.findByRole("combobox", { name: "Interested venue" });
+    await screen.findByRole("combobox", { name: "Assigned consultant" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create lead" }));
+
+    expect(
+      await screen.findByText("Name must contain 2–150 Unicode code points"),
+    ).toBeInTheDocument();
+    expect(document.activeElement).toBe(document.getElementById("fullName"));
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url).endsWith("/leads") && init?.method === "POST",
+      ),
+    ).toBe(false);
+  });
+
   test("warns for a duplicate and still creates successfully", async () => {
     const fetchMock = vi
       .fn()
@@ -95,17 +129,8 @@ describe("lead forms", () => {
             ],
           });
         if (url.endsWith("/leads") && init?.method === "POST")
-          return json({ data: lead });
-        if (url.endsWith("/leads/lead-1"))
-          return json({
-            data: {
-              ...lead,
-              activities: [],
-              trials: [],
-              conversion: null,
-              duplicateMatches: [],
-            },
-          });
+          return json({ data: leadDetail });
+        if (url.endsWith("/leads/lead-1")) return json({ data: leadDetail });
         return json({ data: [] });
       });
     vi.stubGlobal("fetch", fetchMock);
@@ -198,18 +223,11 @@ describe("lead forms", () => {
           expect(body).not.toHaveProperty("id");
           expect(body).not.toHaveProperty("status");
           expect(body).not.toHaveProperty("createdAt");
-          return json({ data: { ...lead, fullName: body.fullName } });
-        }
-        if (url.endsWith("/leads/lead-1"))
           return json({
-            data: {
-              ...lead,
-              activities: [],
-              trials: [],
-              conversion: null,
-              duplicateMatches: [],
-            },
+            data: { ...leadDetail, fullName: body.fullName },
           });
+        }
+        if (url.endsWith("/leads/lead-1")) return json({ data: leadDetail });
         return json({ data: [] });
       });
     vi.stubGlobal("fetch", fetchMock);

@@ -107,7 +107,7 @@ export function LeadList() {
   const sortButton = (sortBy: LeadListQuery["sortBy"]) => (
     <button
       type="button"
-      className="min-h-11 rounded-sm border border-[#aeb4aa] px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+      className="min-h-11 rounded-sm border border-[#777] px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
       aria-pressed={search.sortBy === sortBy}
       onClick={() => updateQuery({ sortBy, page: 1 })}
     >
@@ -135,7 +135,7 @@ export function LeadList() {
           Search name, phone, or email
           <input
             id="lead-search"
-            className="mt-1 min-h-11 w-full rounded-sm border border-[#aeb4aa] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+            className="mt-1 min-h-11 w-full rounded-sm border border-[#777] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
             type="search"
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
@@ -145,7 +145,7 @@ export function LeadList() {
           Source
           <select
             id="lead-source"
-            className="mt-1 min-h-11 w-full rounded-sm border border-[#aeb4aa] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+            className="mt-1 min-h-11 w-full rounded-sm border border-[#777] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
             value={search.source ?? ""}
             onChange={(event) =>
               updateQuery({
@@ -168,7 +168,7 @@ export function LeadList() {
           Consultant
           <select
             id="lead-consultant"
-            className="mt-1 min-h-11 w-full rounded-sm border border-[#aeb4aa] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+            className="mt-1 min-h-11 w-full rounded-sm border border-[#777] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
             value={search.consultantId ?? ""}
             onChange={(event) =>
               updateQuery({
@@ -189,7 +189,7 @@ export function LeadList() {
           Status
           <select
             id="lead-status"
-            className="mt-1 min-h-11 w-full rounded-sm border border-[#aeb4aa] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+            className="mt-1 min-h-11 w-full rounded-sm border border-[#777] px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
             value={search.status ?? ""}
             onChange={(event) =>
               updateQuery({
@@ -219,7 +219,7 @@ export function LeadList() {
           {sortButton("nextFollowUpDate")}
           <button
             type="button"
-            className="min-h-11 rounded-sm border border-[#aeb4aa] px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+            className="min-h-11 rounded-sm border border-[#777] px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
             onClick={toggleSortOrder}
             aria-label={`Change sort order to ${search.sortOrder === "asc" ? "descending" : "ascending"}`}
           >
@@ -228,7 +228,7 @@ export function LeadList() {
         </div>
         <button
           type="button"
-          className="min-h-11 rounded-sm border border-[#aeb4aa] px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+          className="min-h-11 rounded-sm border border-[#777] px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
           onClick={clearFilters}
           disabled={
             !hasFilters &&
@@ -243,7 +243,7 @@ export function LeadList() {
           Rows per page
           <select
             id="lead-page-size"
-            className="ml-2 min-h-11 rounded-sm border border-[#aeb4aa] px-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
+            className="ml-2 min-h-11 rounded-sm border border-[#777] px-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]"
             value={search.pageSize}
             onChange={(event) =>
               updateQuery({ pageSize: Number(event.target.value), page: 1 })

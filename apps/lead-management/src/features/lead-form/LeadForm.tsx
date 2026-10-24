@@ -9,7 +9,6 @@ import {
   duplicatesResponseSchema,
   leadCreateSchema,
   leadDetailResponseSchema,
-  leadResponseSchema,
   venuesResponseSchema,
   type Lead,
   type LeadCreateInput,
@@ -25,6 +24,15 @@ const sourceLabels = {
   walk_in: "Walk-in",
   other: "Other",
 } as const;
+const fieldOrder = [
+  "fullName",
+  "phone",
+  "email",
+  "source",
+  "venueId",
+  "consultantId",
+  "nextFollowUpDate",
+] as const;
 
 type Props = { leadId?: string };
 
@@ -49,6 +57,7 @@ export function LeadForm({ leadId }: Props) {
   });
   const form = useForm<LeadCreateInput>({
     resolver: zodResolver(leadCreateSchema),
+    shouldFocusError: false,
     defaultValues: {
       fullName: "",
       phone: "",
@@ -59,6 +68,10 @@ export function LeadForm({ leadId }: Props) {
       nextFollowUpDate: null,
     },
   });
+  const focusFirstInvalidField = (errors: typeof form.formState.errors) => {
+    const first = fieldOrder.find((field) => errors[field]);
+    if (first) form.setFocus(first);
+  };
   const [phone, email] = form.watch(["phone", "email"]);
   const validContacts = useMemo(() => {
     const parsed = duplicateQuerySchema.safeParse({ phone, email });
@@ -137,7 +150,7 @@ export function LeadForm({ leadId }: Props) {
     try {
       const response = await apiRequest(
         editing ? `/v1/leads/${leadId}` : "/v1/leads",
-        leadResponseSchema,
+        leadDetailResponseSchema,
         {
           method: editing ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -220,7 +233,7 @@ export function LeadForm({ leadId }: Props) {
       <form
         className="mt-5 grid grid-cols-1 gap-4"
         noValidate
-        onSubmit={form.handleSubmit(submit)}
+        onSubmit={form.handleSubmit(submit, focusFirstInvalidField)}
       >
         <Field
           label="Full name"
