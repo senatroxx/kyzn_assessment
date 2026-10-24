@@ -139,7 +139,7 @@ export function LeadList() {
       <Button
         type="button"
         className="min-h-11"
-        variant="ghost"
+        variant="default"
         size="sm"
         aria-label={label}
         onClick={() =>
