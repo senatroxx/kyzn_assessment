@@ -145,6 +145,14 @@ describe("server-backed lead discovery", () => {
         .querySelector('[role="group"][aria-label="Sort leads"]')
         ?.querySelectorAll("button"),
     ).toHaveLength(2);
+    const sourceFilter = screen.getByRole("combobox", { name: "Source" });
+    expect(sourceFilter).toHaveTextContent("Website");
+    sourceFilter.focus();
+    fireEvent.keyDown(sourceFilter, { key: "ArrowDown" });
+    expect(
+      await screen.findByRole("option", { name: "Website" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Website", { selector: "td" })).toBeInTheDocument();
   });
 
   test("updates URL for search, sorting and paging; clear removes filters", async () => {

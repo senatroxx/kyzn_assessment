@@ -44,6 +44,10 @@ const sortLabels = {
   nextFollowUpDate: "Next follow-up",
 } as const;
 const sortableColumns = ["createdAt", "nextFollowUpDate"] as const;
+const sourceLabel = (value: string) => {
+  const label = value.replaceAll("_", " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
 
 function listPath(query: LeadListQuery) {
   const params = new URLSearchParams();
@@ -204,7 +208,7 @@ export function LeadList() {
               <SelectItem value="all">All sources</SelectItem>
               {leadSources.map((source) => (
                 <SelectItem key={source} value={source}>
-                  {source.replaceAll("_", " ")}
+                  {sourceLabel(source)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -491,7 +495,7 @@ function makeColumns(
     {
       accessorKey: "source",
       header: "Source",
-      cell: ({ getValue }) => String(getValue()).replaceAll("_", " "),
+      cell: ({ getValue }) => sourceLabel(String(getValue())),
     },
     {
       accessorKey: "consultantId",
