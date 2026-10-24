@@ -10,33 +10,91 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LeadsRouteImport } from './routes/leads'
+import { Route as LeadsIndexRouteImport } from './routes/leads/index'
+import { Route as LeadsNewRouteImport } from './routes/leads/new'
+import { Route as LeadsLeadIdIndexRouteImport } from './routes/leads/$leadId/index'
+import { Route as LeadsLeadIdEditRouteImport } from './routes/leads/$leadId/edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeadsRoute = LeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsIndexRoute = LeadsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LeadsRoute,
+} as any)
+const LeadsNewRoute = LeadsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => LeadsRoute,
+} as any)
+const LeadsLeadIdIndexRoute = LeadsLeadIdIndexRouteImport.update({
+  id: '/$leadId/',
+  path: '/$leadId/',
+  getParentRoute: () => LeadsRoute,
+} as any)
+const LeadsLeadIdEditRoute = LeadsLeadIdEditRouteImport.update({
+  id: '/$leadId/edit',
+  path: '/$leadId/edit',
+  getParentRoute: () => LeadsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/leads': typeof LeadsRouteWithChildren
+  '/leads/new': typeof LeadsNewRoute
+  '/leads/': typeof LeadsIndexRoute
+  '/leads/$leadId/edit': typeof LeadsLeadIdEditRoute
+  '/leads/$leadId/': typeof LeadsLeadIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/leads/new': typeof LeadsNewRoute
+  '/leads': typeof LeadsIndexRoute
+  '/leads/$leadId/edit': typeof LeadsLeadIdEditRoute
+  '/leads/$leadId': typeof LeadsLeadIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/leads': typeof LeadsRouteWithChildren
+  '/leads/new': typeof LeadsNewRoute
+  '/leads/': typeof LeadsIndexRoute
+  '/leads/$leadId/edit': typeof LeadsLeadIdEditRoute
+  '/leads/$leadId/': typeof LeadsLeadIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/leads'
+    | '/leads/new'
+    | '/leads/'
+    | '/leads/$leadId/edit'
+    | '/leads/$leadId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/leads/new' | '/leads' | '/leads/$leadId/edit' | '/leads/$leadId'
+  id:
+    | '__root__'
+    | '/'
+    | '/leads'
+    | '/leads/new'
+    | '/leads/'
+    | '/leads/$leadId/edit'
+    | '/leads/$leadId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LeadsRoute: typeof LeadsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +106,63 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/leads': {
+      id: '/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof LeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads/': {
+      id: '/leads/'
+      path: '/'
+      fullPath: '/leads/'
+      preLoaderRoute: typeof LeadsIndexRouteImport
+      parentRoute: typeof LeadsRoute
+    }
+    '/leads/new': {
+      id: '/leads/new'
+      path: '/new'
+      fullPath: '/leads/new'
+      preLoaderRoute: typeof LeadsNewRouteImport
+      parentRoute: typeof LeadsRoute
+    }
+    '/leads/$leadId/': {
+      id: '/leads/$leadId/'
+      path: '/$leadId'
+      fullPath: '/leads/$leadId/'
+      preLoaderRoute: typeof LeadsLeadIdIndexRouteImport
+      parentRoute: typeof LeadsRoute
+    }
+    '/leads/$leadId/edit': {
+      id: '/leads/$leadId/edit'
+      path: '/$leadId/edit'
+      fullPath: '/leads/$leadId/edit'
+      preLoaderRoute: typeof LeadsLeadIdEditRouteImport
+      parentRoute: typeof LeadsRoute
+    }
   }
 }
 
+interface LeadsRouteChildren {
+  LeadsNewRoute: typeof LeadsNewRoute
+  LeadsIndexRoute: typeof LeadsIndexRoute
+  LeadsLeadIdEditRoute: typeof LeadsLeadIdEditRoute
+  LeadsLeadIdIndexRoute: typeof LeadsLeadIdIndexRoute
+}
+
+const LeadsRouteChildren: LeadsRouteChildren = {
+  LeadsNewRoute: LeadsNewRoute,
+  LeadsIndexRoute: LeadsIndexRoute,
+  LeadsLeadIdEditRoute: LeadsLeadIdEditRoute,
+  LeadsLeadIdIndexRoute: LeadsLeadIdIndexRoute,
+}
+
+const LeadsRouteWithChildren = LeadsRoute._addFileChildren(LeadsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LeadsRoute: LeadsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
