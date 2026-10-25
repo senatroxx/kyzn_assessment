@@ -1,4 +1,4 @@
-import { count, desc, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { createDatabase } from "../../db/client.ts";
 import { consultants, conversions, leads, venues } from "../../db/schema.ts";
 
@@ -15,20 +15,6 @@ export const leadRepository = (db: Db) => ({
   async update(id: string, value: Partial<typeof leads.$inferInsert>) {
     await db.update(leads).set(value).where(eq(leads.id, id));
     return this.find(id);
-  },
-  async list() {
-    const where = isNull(leads.deletedAt);
-    const [rows, [{ total }]] = await Promise.all([
-      db
-        .select()
-        .from(leads)
-        .where(where)
-        .orderBy(desc(leads.createdAt))
-        .limit(20)
-        .all(),
-      db.select({ total: count() }).from(leads).where(where).all(),
-    ]);
-    return { rows, total };
   },
   async venues() {
     return db.select().from(venues).where(eq(venues.active, true)).all();

@@ -328,34 +328,107 @@ describe("lead forms", () => {
     ).toBeInTheDocument();
   });
 
-  test("shows lookup failures and keeps the form unavailable until references load", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation((url: string) =>
-        url.endsWith("/venues")
-          ? json(
-              {
-                error: {
-                  code: "ERROR",
-                  message: "Venue service unavailable",
-                },
-              },
-              503,
-            )
-          : json({ data: [consultant] }),
-      ),
-    );
-    render(<App />);
-    expect(
-      await screen.findByText(
-        "Could not load venues or consultants. Please retry the page.",
-        {},
-        { timeout: 10_000 },
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Could not load venues or consultants",
-    );
-    expect(screen.getByRole("button", { name: "Create lead" })).toBeDisabled();
-  });
+  test.each([
+    {
+      failedLookup: "venues",
+      loadedLabel: "Assigned consultant",
+      loadedOption: "Ayu",
+      recoveredLabel: "Interested venue",
+      recoveredOption: "Central",
+    },
+    {
+      failedLookup: "consultants",
+      loadedLabel: "Interested venue",
+      loadedOption: "Central",
+      recoveredLabel: "Assigned consultant",
+      recoveredOption: "Ayu",
+    },
+  ])(
+    "retries failed $failedLookup lookup in place and preserves entered values",
+    async ({
+      failedLookup,
+      loadedLabel,
+      loadedOption,
+      recoveredLabel,
+      recoveredOption,
+    }) => {
+      let failedLookupAttempts = 0;
+      const fetchMock = vi.fn(
+        (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input);
+          if (url.endsWith(`/${failedLookup}`)) {
+            failedLookupAttempts += 1;
+            return Promise.resolve(
+              failedLookupAttempts <= 2
+                ? json(
+                    {
+                      error: {
+                        code: "ERROR",
+                        message: "Venue service unavailable",
+                      },
+                    },
+                    503,
+                  )
+                : json({
+                    data: [failedLookup === "venues" ? venue : consultant],
+                  }),
+            );
+          }
+          if (url.endsWith("/venues"))
+            return Promise.resolve(json({ data: [venue] }));
+          if (url.endsWith("/consultants"))
+            return Promise.resolve(json({ data: [consultant] }));
+          if (url.includes("/duplicates?"))
+            return Promise.resolve(json({ data: [] }));
+          if (url.endsWith("/leads") && init?.method === "POST")
+            return Promise.resolve(json({ data: leadDetail }, 201));
+          if (url.endsWith("/leads/lead-1"))
+            return Promise.resolve(json({ data: leadDetail }));
+          return Promise.resolve(json({ data: [] }));
+        },
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      render(<App />);
+      const name = await screen.findByLabelText(/Full name/);
+      await screen.findByRole("alert", {}, { timeout: 10_000 });
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Could not load venues or consultants",
+      );
+      fireEvent.change(name, { target: { value: "Rani Putri" } });
+      fireEvent.change(screen.getByLabelText(/Phone/), {
+        target: { value: "+6281234567890" },
+      });
+      fireEvent.change(screen.getByLabelText(/Email/), {
+        target: { value: "rani@example.com" },
+      });
+      await chooseOption(loadedLabel, loadedOption);
+      expect(
+        screen.getByRole("button", { name: "Create lead" }),
+      ).toBeDisabled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Retry lookup" }));
+      await waitFor(() =>
+        expect(
+          screen.getByRole("combobox", { name: recoveredLabel }),
+        ).toBeEnabled(),
+      );
+      expect(name).toHaveValue("Rani Putri");
+      expect(screen.getByLabelText(/Phone/)).toHaveValue("+6281234567890");
+      expect(screen.getByLabelText(/Email/)).toHaveValue("rani@example.com");
+      await chooseOption(recoveredLabel, recoveredOption);
+      fireEvent.click(screen.getByRole("button", { name: "Create lead" }));
+
+      expect(
+        await screen.findByRole("heading", { name: "Rani Putri" }),
+      ).toBeInTheDocument();
+      expect(failedLookupAttempts).toBe(3);
+      expect(
+        fetchMock.mock.calls.filter(([url]) =>
+          String(url).endsWith(
+            `/${failedLookup === "venues" ? "consultants" : "venues"}`,
+          ),
+        ),
+      ).toHaveLength(1);
+    },
+  );
 });

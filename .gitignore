@@ -12,6 +12,7 @@ data/
 *.db
 *.db-*
 *.md
+!/README.md
 *.pdf
 drizzle/meta/
 !drizzle/meta/_journal.json

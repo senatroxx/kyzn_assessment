@@ -5,7 +5,6 @@ import {
   idSchema,
   leadCreateSchema,
   leadDetailResponseSchema,
-  leadListResponseSchema,
   leadUpdateSchema,
   venuesResponseSchema,
 } from "@kyzn/shared";
@@ -37,8 +36,6 @@ export function leadHandlers(service: Service) {
     res.json(
       parse(consultantsResponseSchema, { data: await service.consultants() }),
     );
-  const list: RequestHandler = async (_req, res) =>
-    res.json(parse(leadListResponseSchema, await service.list()));
   const create: RequestHandler = async (req, res) =>
     res.status(201).json(
       parse(leadDetailResponseSchema, {
@@ -57,5 +54,5 @@ export function leadHandlers(service: Service) {
       }),
     );
   };
-  return { venues, consultants, list, create, get, update };
+  return { venues, consultants, create, get, update };
 }

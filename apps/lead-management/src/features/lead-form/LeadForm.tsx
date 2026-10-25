@@ -209,6 +209,11 @@ export function LeadForm({ leadId }: Props) {
       </Alert>
     );
   const lookupFailure = venues.isError || consultants.isError;
+  const retryLookups = () =>
+    Promise.all([
+      ...(venues.isError ? [venues.refetch()] : []),
+      ...(consultants.isError ? [consultants.refetch()] : []),
+    ]);
 
   return (
     <section className="max-w-2xl" aria-labelledby="lead-form-heading">
@@ -259,8 +264,18 @@ export function LeadForm({ leadId }: Props) {
       {lookupFailure ? (
         <Alert role="alert" variant="destructive" className="mt-4">
           <AlertDescription>
-            Could not load venues or consultants. Please retry the page.
+            Could not load venues or consultants. Retry the failed lookup.
           </AlertDescription>
+          <Button
+            type="button"
+            className="mt-2"
+            variant="outline"
+            size="sm"
+            disabled={venues.isFetching || consultants.isFetching}
+            onClick={() => void retryLookups()}
+          >
+            Retry lookup
+          </Button>
         </Alert>
       ) : null}
       {!lookupFailure && (venues.isPending || consultants.isPending) ? (

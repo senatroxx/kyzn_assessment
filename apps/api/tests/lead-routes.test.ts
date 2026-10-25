@@ -56,6 +56,39 @@ describe("composed lead routes", () => {
           isDuplicate: true,
         });
 
+        const filteredPage = await request(app)
+          .get("/api/v1/leads")
+          .query({ source: "referral", search: "Bea", page: 1, pageSize: 1 });
+        expect(filteredPage.status).toBe(200);
+        expect(filteredPage.body.data).toHaveLength(1);
+        expect(filteredPage.body.data[0]).toMatchObject({
+          id: "lead-b",
+          isDuplicate: true,
+        });
+        expect(filteredPage.body.meta).toEqual({
+          page: 1,
+          pageSize: 1,
+          total: 1,
+          totalPages: 1,
+        });
+
+        const secondPage = await request(app).get("/api/v1/leads").query({
+          sortBy: "createdAt",
+          sortOrder: "asc",
+          page: 2,
+          pageSize: 1,
+        });
+        expect(secondPage.status).toBe(200);
+        expect(
+          secondPage.body.data.map((row: { id: string }) => row.id),
+        ).toEqual(["lead-b"]);
+        expect(secondPage.body.meta).toEqual({
+          page: 2,
+          pageSize: 1,
+          total: 2,
+          totalPages: 2,
+        });
+
         const duplicates = await request(app)
           .get("/api/v1/leads/duplicates")
           .query({ phone: "0812-3456-7890", excludeId: "lead-a" });

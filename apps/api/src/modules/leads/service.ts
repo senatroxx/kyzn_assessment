@@ -131,18 +131,6 @@ export function leadService(db: Db) {
       if (!row) throw new Error("Updated lead could not be read.");
       return detail(row);
     },
-    async list() {
-      const { rows, total } = await repo.list();
-      return {
-        data: rows.map((row) => ({ ...present(row), isDuplicate: false })),
-        meta: {
-          page: 1,
-          pageSize: 20,
-          total,
-          totalPages: Math.ceil(total / 20),
-        },
-      };
-    },
     venues: () => repo.venues(),
     consultants: () => repo.consultants(),
   };
