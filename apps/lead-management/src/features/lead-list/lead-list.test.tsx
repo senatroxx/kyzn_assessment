@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { App } from "../../router";
@@ -31,7 +32,7 @@ function respond(data: unknown, meta?: unknown) {
   });
 }
 
-function setup(path = "/leads") {
+function setup(path = "/leads", overrides: Partial<typeof lead> = {}) {
   window.history.replaceState({}, "", path);
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
     const url = new URL(String(input));
@@ -42,7 +43,7 @@ function setup(path = "/leads") {
     const page = Number(url.searchParams.get("page") ?? 1);
     const pageSize = Number(url.searchParams.get("pageSize") ?? 20);
     return Promise.resolve(
-      respond([lead], {
+      respond([{ ...lead, ...overrides }], {
         page,
         pageSize,
         total: 21,
@@ -107,6 +108,59 @@ afterEach(() => {
 });
 
 describe("server-backed lead discovery", () => {
+  test("separates name navigation from independently actionable contact links", async () => {
+    const phone = "+62 (812) 3456-789";
+    setup("/leads", { phone });
+    const name = await screen.findByRole("link", { name: lead.fullName });
+    const phoneLink = screen.getByRole("link", { name: phone });
+    const emailLink = screen.getByRole("link", { name: lead.email });
+    expect(
+      screen.getByRole("columnheader", { name: "Name" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Contact" }),
+    ).toBeInTheDocument();
+    expect(name).toHaveAttribute("href", "/leads/lead-1");
+    expect(name).toHaveTextContent(/^Ayu Pratama$/);
+    expect(phoneLink).toHaveAttribute("href", "tel:+628123456789");
+    expect(emailLink).toHaveAttribute("href", "mailto:ayu@example.com");
+    const nameCell = name.closest("td");
+    const contactCell = phoneLink.closest("td");
+    if (!nameCell || !contactCell) throw new Error("Missing lead cells");
+    expect(nameCell).not.toBe(contactCell);
+    expect(within(nameCell).queryByText(phone)).not.toBeInTheDocument();
+    expect(within(contactCell).getAllByRole("link")).toHaveLength(2);
+    expect(contactCell.querySelector('a[href^="/leads/"]')).toBeNull();
+    expect(within(nameCell).getByText("Name")).toBeInTheDocument();
+    expect(within(contactCell).getByText("Contact")).toBeInTheDocument();
+    phoneLink.focus();
+    expect(phoneLink).toHaveFocus();
+    emailLink.focus();
+    expect(emailLink).toHaveFocus();
+  });
+
+  test("keeps long contact values accessible in the link name and title", async () => {
+    const email = "a".repeat(50) + "@long-domain.example.test";
+    setup("/leads", { email });
+    const link = await screen.findByRole("link", { name: email });
+    expect(link).toHaveAttribute("href", `mailto:${email}`);
+    expect(link).toHaveAttribute("title", email);
+    expect(link).toHaveTextContent(email);
+  });
+
+  test.each(["phone", "email"] as const)(
+    "rejects a response missing required %s instead of creating an invalid contact action",
+    async (field) => {
+      setup("/leads", { [field]: undefined });
+      expect(
+        await screen.findByRole("alert", {}, { timeout: 5000 }),
+      ).toHaveTextContent("Could not load leads");
+      expect(
+        document.querySelector('a[href^="tel:"], a[href^="mailto:"]'),
+      ).toBeNull();
+    },
+  );
+
   test("sends combined filters and page state to the API, shows rows and detail links", async () => {
     const fetchMock = setup(
       "/leads?source=website&consultantId=consultant-1&status=new&page=2&pageSize=10&sortBy=nextFollowUpDate&sortOrder=asc",
@@ -133,7 +187,7 @@ describe("server-backed lead discovery", () => {
     expect(screen.getByText("New")).toHaveClass("bg-sky-50");
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
-    expect(document.querySelectorAll("th")).toHaveLength(7);
+    expect(document.querySelectorAll("th")).toHaveLength(8);
     expect(document.querySelectorAll("th button[aria-label]")).toHaveLength(2);
     expect(
       findSortControl(

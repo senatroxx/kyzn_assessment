@@ -364,7 +364,17 @@ export function LeadList() {
               {sortButton("createdAt")}
               {sortButton("nextFollowUpDate")}
             </div>
-            <Table className="w-full text-left text-xs sm:table-fixed sm:text-sm">
+            <Table className="w-full text-left text-xs sm:min-w-[64rem] sm:table-fixed sm:text-sm">
+              <colgroup className="hidden sm:table-column-group">
+                <col className="w-[14%]" />
+                <col className="w-[18%]" />
+                <col className="w-[10%]" />
+                <col className="w-[13%]" />
+                <col className="w-[11%]" />
+                <col className="w-[12%]" />
+                <col className="w-[11%]" />
+                <col className="w-[11%]" />
+              </colgroup>
               <TableHeader className="hidden bg-[#f1f3ef] sm:table-header-group">
                 {table.getHeaderGroups().map((group) => (
                   <TableRow key={group.id}>
@@ -464,7 +474,8 @@ export function LeadList() {
 }
 
 const columnLabels: Record<string, string> = {
-  name: "Name / contact",
+  name: "Name",
+  contact: "Contact",
   source: "Source",
   consultantId: "Consultant",
   status: "Status",
@@ -479,7 +490,7 @@ function makeColumns(
   return [
     {
       id: "name",
-      header: "Name / contact",
+      header: "Name",
       cell: ({ row }) => (
         <Link
           className="font-medium text-[#24533d] underline underline-offset-2 focus-visible:outline-2"
@@ -487,19 +498,29 @@ function makeColumns(
           params={{ leadId: row.original.id }}
         >
           {row.original.fullName}
-          <span
-            className="mt-1 block max-w-56 truncate text-xs font-normal text-[#555a53]"
+        </Link>
+      ),
+    },
+    {
+      id: "contact",
+      header: "Contact",
+      cell: ({ row }) => (
+        <div className="min-w-0 max-w-56 text-xs text-[#555a53] sm:max-w-none">
+          <a
+            className="block truncate underline underline-offset-2 hover:text-[#24533d] focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={`tel:${row.original.phone.replace(/[^\d+]/g, "")}`}
             title={row.original.phone}
           >
             {row.original.phone}
-          </span>
-          <span
-            className="block max-w-56 truncate text-xs font-normal text-[#555a53]"
+          </a>
+          <a
+            className="block truncate underline underline-offset-2 hover:text-[#24533d] focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={`mailto:${row.original.email}`}
             title={row.original.email}
           >
             {row.original.email}
-          </span>
-        </Link>
+          </a>
+        </div>
       ),
     },
     {
