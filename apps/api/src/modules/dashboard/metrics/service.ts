@@ -1,4 +1,5 @@
 import type { createDatabase } from "../../../db/client.ts";
+import { businessDateAt } from "../../../time.ts";
 import { dashboardMetricsRepository } from "./repository.ts";
 
 export function dashboardMetricsService(
@@ -8,18 +9,7 @@ export function dashboardMetricsService(
 ) {
   const repository = dashboardMetricsRepository(db);
   return async () => {
-    const dateParts = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(now());
-    const date = Object.fromEntries(
-      dateParts.map(({ type, value }) => [type, value]),
-    );
-    const counts = await repository.get(
-      `${date.year}-${date.month}-${date.day}`,
-    );
+    const counts = await repository.get(businessDateAt(now(), timeZone));
     return {
       ...counts,
       conversionRate: counts.totalLeads

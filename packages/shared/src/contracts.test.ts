@@ -10,6 +10,11 @@ import {
   conversionCreateSchema,
   conversionResponseSchema,
   conversionSchema,
+  dashboardFunnelResponseSchema,
+  dashboardFollowUpsQuerySchema,
+  dashboardFollowUpsResponseSchema,
+  dashboardLeadsTrendQuerySchema,
+  dashboardLeadsTrendResponseSchema,
   dashboardMetricsResponseSchema,
   dashboardMetricsSchema,
   dateOnlySchema,
@@ -45,6 +50,11 @@ import type {
   ConversionCreateInput,
   DashboardMetrics,
   DashboardMetricsResponse,
+  DashboardFunnelResponse,
+  DashboardFollowUpsQuery,
+  DashboardFollowUpsResponse,
+  DashboardLeadsTrendQuery,
+  DashboardLeadsTrendResponse,
   DuplicatesResponse,
   Lead,
   LeadCreateInput,
@@ -657,5 +667,109 @@ describe("metrics, errors, and inferred public types", () => {
     ).toEqualTypeOf<ApiError>();
     const response: ApiResponse<Lead> = { data: leadSchema.parse(lead) };
     expect(response.data.id).toBe(lead.id);
+  });
+});
+
+describe("dashboard insight contracts", () => {
+  test("validates supported trend periods and dated buckets", () => {
+    expect(dashboardLeadsTrendQuerySchema.parse({})).toEqual({ days: 30 });
+    expect(dashboardLeadsTrendQuerySchema.parse({ days: "7" })).toEqual({
+      days: 7,
+    });
+    expect(
+      dashboardLeadsTrendQuerySchema.safeParse({ days: "14" }).success,
+    ).toBe(false);
+    const response = {
+      data: [
+        { date: "2026-10-24", count: 0 },
+        { date: "2026-10-25", count: 2 },
+      ],
+    };
+    expect(dashboardLeadsTrendResponseSchema.parse(response)).toEqual(response);
+    expect(
+      dashboardLeadsTrendResponseSchema.safeParse({
+        data: [{ date: "2026-10-24", count: -1 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  test("validates independent milestone counts and shares of eligible leads", () => {
+    const response = {
+      data: {
+        eligibleLeadCount: 0,
+        stages: [
+          { key: "total_leads", leadCount: 0, percentOfEligibleLeads: 0 },
+          { key: "contacted", leadCount: 0, percentOfEligibleLeads: 0 },
+          {
+            key: "completed_trials",
+            leadCount: 0,
+            percentOfEligibleLeads: 0,
+          },
+          { key: "converted", leadCount: 0, percentOfEligibleLeads: 0 },
+        ],
+      },
+    } as const;
+    expect(dashboardFunnelResponseSchema.parse(response)).toEqual(response);
+    expect(
+      dashboardFunnelResponseSchema.safeParse({
+        data: {
+          ...response.data,
+          stages: response.data.stages.map((stage) => ({
+            ...stage,
+            percentOfEligibleLeads: 101,
+          })),
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  test("validates bounded follow-up lists with optional consultant names", () => {
+    expect(dashboardFollowUpsQuerySchema.parse({})).toEqual({ limit: 5 });
+    expect(dashboardFollowUpsQuerySchema.safeParse({ limit: 6 }).success).toBe(
+      false,
+    );
+    const response = {
+      data: [
+        {
+          id: "lead_1",
+          fullName: "Test Lead",
+          consultantName: null,
+          nextFollowUpDate: "2026-10-24",
+          followUpStatus: "overdue",
+        },
+      ],
+    } as const;
+    expect(dashboardFollowUpsResponseSchema.parse(response)).toEqual(response);
+    expectTypeOf(
+      dashboardFollowUpsQuerySchema.parse({}),
+    ).toEqualTypeOf<DashboardFollowUpsQuery>();
+  });
+
+  test("exports inferred insight response types", () => {
+    expectTypeOf(
+      dashboardLeadsTrendQuerySchema.parse({ days: "7" }),
+    ).toEqualTypeOf<DashboardLeadsTrendQuery>();
+    expectTypeOf(
+      dashboardLeadsTrendResponseSchema.parse({ data: [] }),
+    ).toEqualTypeOf<DashboardLeadsTrendResponse>();
+    const funnel = dashboardFunnelResponseSchema.parse({
+      data: {
+        eligibleLeadCount: 0,
+        stages: [
+          { key: "total_leads", leadCount: 0, percentOfEligibleLeads: 0 },
+          { key: "contacted", leadCount: 0, percentOfEligibleLeads: 0 },
+          {
+            key: "completed_trials",
+            leadCount: 0,
+            percentOfEligibleLeads: 0,
+          },
+          { key: "converted", leadCount: 0, percentOfEligibleLeads: 0 },
+        ],
+      },
+    });
+    expectTypeOf(funnel).toEqualTypeOf<DashboardFunnelResponse>();
+    expectTypeOf(
+      dashboardFollowUpsResponseSchema.parse({ data: [] }),
+    ).toEqualTypeOf<DashboardFollowUpsResponse>();
   });
 });

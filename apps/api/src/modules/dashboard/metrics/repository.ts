@@ -1,9 +1,9 @@
-import { and, count, eq, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, count, eq, lte, sql } from "drizzle-orm";
 import type { createDatabase } from "../../../db/client.ts";
 import { conversions, leads, trials } from "../../../db/schema.ts";
+import { eligibleLeadCondition, openFollowUpCondition } from "../policies.ts";
 
 type Db = ReturnType<typeof createDatabase>["db"];
-const eligible = and(isNull(leads.deletedAt), ne(leads.status, "invalid"));
 
 export function dashboardMetricsRepository(db: Db) {
   return {
@@ -16,19 +16,23 @@ export function dashboardMetricsRepository(db: Db) {
         [trialsCompleted],
         [convertedLeads],
       ] = await Promise.all([
-        db.select({ value: count() }).from(leads).where(eligible).all(),
         db
           .select({ value: count() })
           .from(leads)
-          .where(and(eligible, eq(leads.status, "new")))
+          .where(eligibleLeadCondition())
+          .all(),
+        db
+          .select({ value: count() })
+          .from(leads)
+          .where(and(eligibleLeadCondition(), eq(leads.status, "new")))
           .all(),
         db
           .select({ value: count() })
           .from(leads)
           .where(
             and(
-              eligible,
-              sql`${leads.status} IN ('new','contacted','trial_scheduled','trial_completed')`,
+              eligibleLeadCondition(),
+              openFollowUpCondition(),
               lte(leads.nextFollowUpDate, followUpDate),
             ),
           )
@@ -37,19 +41,19 @@ export function dashboardMetricsRepository(db: Db) {
           .select({ value: count() })
           .from(trials)
           .innerJoin(leads, eq(trials.leadId, leads.id))
-          .where(and(eligible, eq(trials.status, "scheduled")))
+          .where(and(eligibleLeadCondition(), eq(trials.status, "scheduled")))
           .all(),
         db
           .select({ value: count() })
           .from(trials)
           .innerJoin(leads, eq(trials.leadId, leads.id))
-          .where(and(eligible, eq(trials.status, "completed")))
+          .where(and(eligibleLeadCondition(), eq(trials.status, "completed")))
           .all(),
         db
           .select({ value: sql<number>`count(distinct ${conversions.leadId})` })
           .from(conversions)
           .innerJoin(leads, eq(conversions.leadId, leads.id))
-          .where(eligible)
+          .where(eligibleLeadCondition())
           .all(),
       ]);
       return {

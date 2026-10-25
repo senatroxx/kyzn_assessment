@@ -1,19 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { dashboardMetricsResponseSchema } from "@kyzn/shared";
 import { Alert, AlertDescription, AlertTitle } from "@kyzn/ui/components/alert";
 import { Button } from "@kyzn/ui/components/button";
 import { Card, CardContent, CardHeader } from "@kyzn/ui/components/card";
 import { Skeleton } from "@kyzn/ui/components/skeleton";
-import { apiBaseUrl } from "../lib/api";
-
-const metricsQueryKey = ["dashboard-metrics"];
-
-async function getDashboardMetrics() {
-  const response = await fetch(`${apiBaseUrl}/v1/dashboard/metrics`);
-  if (!response.ok) throw new Error("Dashboard metrics could not be loaded.");
-  return dashboardMetricsResponseSchema.parse(await response.json()).data;
-}
+import { DashboardInsights } from "../features/analytics/DashboardInsights";
+import {
+  dashboardQueryKeys,
+  getDashboardMetrics,
+} from "../features/analytics/api";
 
 const metrics = [
   { key: "totalLeads", label: "Total leads" },
@@ -25,8 +20,10 @@ const metrics = [
 ] as const;
 
 function HomePage() {
-  const { data, error, isPending, isFetching, refetch } = useQuery({
-    queryKey: metricsQueryKey,
+  const queryClient = useQueryClient();
+  const isFetching = useIsFetching({ queryKey: dashboardQueryKeys.all }) > 0;
+  const { data, error, isPending, refetch } = useQuery({
+    queryKey: dashboardQueryKeys.metrics,
     queryFn: getDashboardMetrics,
   });
 
@@ -56,10 +53,14 @@ function HomePage() {
             className="underline underline-offset-4"
             variant="ghost"
             type="button"
-            onClick={() => void refetch()}
+            onClick={() =>
+              void queryClient.invalidateQueries({
+                queryKey: dashboardQueryKeys.all,
+              })
+            }
             disabled={isFetching}
           >
-            {isFetching ? "Refreshing…" : "Refresh metrics"}
+            {isFetching ? "Refreshing…" : "Refresh dashboard"}
           </Button>
         </div>
 
@@ -138,6 +139,7 @@ function HomePage() {
           </>
         ) : null}
       </section>
+      <DashboardInsights />
     </div>
   );
 }

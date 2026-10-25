@@ -270,6 +270,54 @@ export const dashboardMetricsResponseSchema = z.strictObject({
   data: dashboardMetricsSchema,
 });
 
+const nonnegativeCountSchema = z.number().int().safe().nonnegative();
+const percentageSchema = z.number().finite().min(0).max(100);
+
+export const dashboardLeadsTrendQuerySchema = z.strictObject({
+  days: z.coerce
+    .number()
+    .int()
+    .refine((value) => value === 7 || value === 30)
+    .default(30),
+});
+export const dashboardLeadsTrendResponseSchema = z.strictObject({
+  data: z.array(
+    z.strictObject({ date: dateOnlySchema, count: nonnegativeCountSchema }),
+  ),
+});
+
+const dashboardFunnelStageSchema = <K extends string>(key: K) =>
+  z.strictObject({
+    key: z.literal(key),
+    leadCount: nonnegativeCountSchema,
+    percentOfEligibleLeads: percentageSchema,
+  });
+export const dashboardFunnelResponseSchema = z.strictObject({
+  data: z.strictObject({
+    eligibleLeadCount: nonnegativeCountSchema,
+    stages: z.tuple([
+      dashboardFunnelStageSchema("total_leads"),
+      dashboardFunnelStageSchema("contacted"),
+      dashboardFunnelStageSchema("completed_trials"),
+      dashboardFunnelStageSchema("converted"),
+    ]),
+  }),
+});
+
+export const dashboardFollowUpsQuerySchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(5).default(5),
+});
+export const dashboardFollowUpSchema = z.strictObject({
+  id: idSchema,
+  fullName: fullNameSchema,
+  consultantName: z.string().nullable(),
+  nextFollowUpDate: dateOnlySchema,
+  followUpStatus: z.enum(["overdue", "due_today"]),
+});
+export const dashboardFollowUpsResponseSchema = z.strictObject({
+  data: z.array(dashboardFollowUpSchema).max(5),
+});
+
 export const apiErrorSchema = z.strictObject({
   error: z.strictObject({
     code: z.string(),
@@ -324,6 +372,22 @@ export type ConversionResponse = z.infer<typeof conversionResponseSchema>;
 export type DashboardMetrics = z.infer<typeof dashboardMetricsSchema>;
 export type DashboardMetricsResponse = z.infer<
   typeof dashboardMetricsResponseSchema
+>;
+export type DashboardLeadsTrendQuery = z.infer<
+  typeof dashboardLeadsTrendQuerySchema
+>;
+export type DashboardLeadsTrendResponse = z.infer<
+  typeof dashboardLeadsTrendResponseSchema
+>;
+export type DashboardFunnelResponse = z.infer<
+  typeof dashboardFunnelResponseSchema
+>;
+export type DashboardFollowUpsQuery = z.infer<
+  typeof dashboardFollowUpsQuerySchema
+>;
+export type DashboardFollowUp = z.infer<typeof dashboardFollowUpSchema>;
+export type DashboardFollowUpsResponse = z.infer<
+  typeof dashboardFollowUpsResponseSchema
 >;
 export type PaginationMeta = z.infer<typeof paginationMetaSchema>;
 export type LeadSource = z.infer<typeof leadSourceSchema>;

@@ -12,6 +12,7 @@ import {
   leadListResponseSchema,
   leadSources,
   leadStatuses,
+  type LeadStatus,
   type LeadListQuery,
   type LeadListResponse,
 } from "@kyzn/shared";
@@ -37,7 +38,9 @@ import {
   TableRow,
 } from "@kyzn/ui/components/table";
 import { apiRequest } from "../../lib/api";
+import { formatBusinessDate, formatBusinessInstantDate } from "../../lib/dates";
 import { leadQueryKeys } from "../../lib/query-keys";
+import { LeadStatusBadge } from "../lead-status/LeadStatusBadge";
 
 const sortLabels = {
   createdAt: "Created date",
@@ -142,7 +145,7 @@ export function LeadList() {
     return (
       <Button
         type="button"
-        className="min-h-11"
+        className="min-h-11 max-w-full justify-start gap-1 p-0 text-left"
         variant="ghost"
         size="sm"
         aria-label={label}
@@ -158,10 +161,10 @@ export function LeadList() {
           })
         }
       >
-        {sortLabels[sortBy]}
+        <span className="min-w-0 whitespace-normal">{sortLabels[sortBy]}</span>
         {active && (
-          <span aria-hidden="true">
-            {search.sortOrder === "asc" ? " ↑" : " ↓"}
+          <span aria-hidden="true" className="shrink-0">
+            {search.sortOrder === "asc" ? "↑" : "↓"}
           </span>
         )}
       </Button>
@@ -484,9 +487,16 @@ function makeColumns(
           params={{ leadId: row.original.id }}
         >
           {row.original.fullName}
-          <span className="mt-1 block font-normal text-[#555a53]">
+          <span
+            className="mt-1 block max-w-56 truncate text-xs font-normal text-[#555a53]"
+            title={row.original.phone}
+          >
             {row.original.phone}
-            <br />
+          </span>
+          <span
+            className="block max-w-56 truncate text-xs font-normal text-[#555a53]"
+            title={row.original.email}
+          >
             {row.original.email}
           </span>
         </Link>
@@ -507,20 +517,19 @@ function makeColumns(
       accessorKey: "status",
       header: "Status",
       cell: ({ getValue }) => (
-        <Badge variant="secondary">
-          {String(getValue()).replaceAll("_", " ")}
-        </Badge>
+        <LeadStatusBadge status={getValue<LeadStatus>()} />
       ),
     },
     {
       accessorKey: "nextFollowUpDate",
       header: "Next follow-up",
-      cell: ({ getValue }) => (getValue() ? String(getValue()) : "—"),
+      cell: ({ getValue }) =>
+        getValue() ? formatBusinessDate(String(getValue())) : "—",
     },
     {
       accessorKey: "createdAt",
       header: "Created",
-      cell: ({ getValue }) => new Date(String(getValue())).toLocaleDateString(),
+      cell: ({ getValue }) => formatBusinessInstantDate(String(getValue())),
     },
     {
       accessorKey: "isDuplicate",

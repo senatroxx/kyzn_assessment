@@ -14,6 +14,12 @@ import {
 } from "@kyzn/ui";
 
 describe("shared Button", () => {
+  test("exposes its native ref so action panels can restore focus", () => {
+    const ref = createRef<HTMLButtonElement>();
+    render(<Button ref={ref}>Log activity</Button>);
+    ref.current?.focus();
+    expect(screen.getByRole("button", { name: "Log activity" })).toHaveFocus();
+  });
   test("renders its accessible label and native button behavior", () => {
     render(<Button>Save</Button>);
     expect(screen.getByRole("button", { name: "Save" })).toHaveAttribute(

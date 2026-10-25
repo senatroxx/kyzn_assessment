@@ -1,13 +1,22 @@
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { leadDetailResponseSchema } from "@kyzn/shared";
+import {
+  consultantsResponseSchema,
+  leadDetailResponseSchema,
+  venuesResponseSchema,
+  type LeadDetailResponse,
+} from "@kyzn/shared";
 import { Alert, AlertDescription } from "@kyzn/ui/components/alert";
-import { Badge } from "@kyzn/ui/components/badge";
 import { Button } from "@kyzn/ui/components/button";
 import { Card, CardContent } from "@kyzn/ui/components/card";
+import { ActivityTimeline } from "./ActivityTimeline";
+import { FollowUpCard } from "./FollowUpCard";
 import { Skeleton } from "@kyzn/ui/components/skeleton";
 import { apiRequest, ApiRequestError } from "../../lib/api";
+import { formatBusinessDateTime } from "../../lib/dates";
 import { leadQueryKeys } from "../../lib/query-keys";
+import { LeadStatusBadge } from "../lead-status/LeadStatusBadge";
 import { ContactPanel } from "../lead-workflows/ContactPanel";
 import { ConversionPanel } from "../lead-workflows/ConversionPanel";
 import { TrialPanel } from "../lead-workflows/TrialPanel";
@@ -20,8 +29,6 @@ const sourceLabels: Record<string, string> = {
   walk_in: "Walk-in",
   other: "Other",
 };
-const readable = (value: string) => value.replaceAll("_", " ");
-const dateTime = (value: string) => new Date(value).toLocaleString();
 const linkClass =
   "underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#31634c]";
 
@@ -33,6 +40,14 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         `/v1/leads/${encodeURIComponent(leadId)}`,
         leadDetailResponseSchema,
       ),
+  });
+  const venues = useQuery({
+    queryKey: [...leadQueryKeys.lookups(), "venues"],
+    queryFn: () => apiRequest("/v1/venues", venuesResponseSchema),
+  });
+  const consultants = useQuery({
+    queryKey: [...leadQueryKeys.lookups(), "consultants"],
+    queryFn: () => apiRequest("/v1/consultants", consultantsResponseSchema),
   });
 
   if (detail.isPending)
@@ -49,9 +64,9 @@ export function LeadDetail({ leadId }: { leadId: string }) {
       detail.error instanceof ApiRequestError && detail.error.status === 404;
     return (
       <section aria-labelledby="detail-heading" className="max-w-3xl">
-        <h2 id="detail-heading" className="text-xl font-semibold">
+        <h1 id="detail-heading" className="text-xl font-semibold">
           {missing ? "Lead not found" : "Could not load lead details"}
-        </h2>
+        </h1>
         <Alert role="alert" variant="destructive" className="mt-3">
           <AlertDescription>
             {missing
@@ -79,141 +94,270 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   }
 
   const lead = detail.data.data;
-  const fields: [string, string | null][] = [
+  return (
+    <LeadWorkspace
+      key={lead.id}
+      lead={lead}
+      venueName={
+        venues.data?.data.find((venue) => venue.id === lead.venueId)?.name ??
+        lead.venueId
+      }
+      consultantName={
+        consultants.data?.data.find(
+          (consultant) => consultant.id === lead.consultantId,
+        )?.name ?? lead.consultantId
+      }
+    />
+  );
+}
+
+function LeadWorkspace({
+  lead,
+  venueName,
+  consultantName,
+}: {
+  lead: LeadDetailResponse["data"];
+  venueName: string;
+  consultantName: string;
+}) {
+  const [action, setAction] = useState<"activity" | "followUp" | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const [activityPending, setActivityPending] = useState(false);
+  const actionTrigger = useRef<HTMLButtonElement | null>(null);
+  const restoreFocus = useRef(false);
+  useEffect(() => {
+    if (restoreFocus.current && !action && !activityPending) {
+      actionTrigger.current?.focus();
+      restoreFocus.current = false;
+    }
+  }, [action, activityPending]);
+  const canLogActivity = !["converted", "invalid"].includes(lead.status);
+  function closeAction() {
+    restoreFocus.current = true;
+    setAction(null);
+    setActivityPending(false);
+  }
+  const fields = [
     ["Lead ID", lead.id],
-    ["Full name", lead.fullName],
-    ["Phone", lead.phone],
-    ["Email", lead.email],
-    ["Lead source", sourceLabels[lead.source]],
-    ["Interested venue ID", lead.venueId],
-    ["Assigned consultant ID", lead.consultantId],
-    ["Status", readable(lead.status)],
-    ["Created", lead.createdAt],
-    ["Last contacted", lead.lastContactAt],
-    ["Next follow-up", lead.nextFollowUpDate],
+    ["Interested venue", venueName],
+    ["Assigned consultant", consultantName],
   ];
   return (
-    <section aria-labelledby="detail-heading" className="max-w-3xl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="detail-heading" className="text-xl font-semibold">
+    <section aria-labelledby="detail-heading" className="min-w-0">
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-4 text-sm text-muted-foreground"
+      >
+        <ol className="flex min-w-0 flex-wrap items-center gap-2">
+          <li>
+            <Link className={linkClass} to="/leads" aria-label="Back to leads">
+              Leads
+            </Link>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li className="min-w-0 break-words" aria-current="page">
             {lead.fullName}
-          </h2>
-          <Badge className="mt-1" variant="secondary">
-            {readable(lead.status)}
-          </Badge>
+          </li>
+        </ol>
+      </nav>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1
+            id="detail-heading"
+            className="break-words text-2xl font-semibold tracking-tight sm:text-3xl"
+          >
+            {lead.fullName}
+          </h1>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <LeadStatusBadge status={lead.status} />
+            <span className="text-sm text-muted-foreground">
+              Source: {sourceLabels[lead.source]}
+            </span>
+          </div>
         </div>
-        <nav aria-label="Lead actions" className="flex flex-wrap gap-5">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
-            className={linkClass}
+            className="inline-flex min-h-11 items-center rounded-sm border border-input bg-card px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
             to="/leads/$leadId/edit"
-            params={{ leadId }}
+            params={{ leadId: lead.id }}
           >
             Edit lead
           </Link>
-          <Link className={linkClass} to="/leads">
-            Back to leads
-          </Link>
-        </nav>
-      </div>
-
-      <section aria-labelledby="profile-heading" className="mt-6">
-        <h3 id="profile-heading" className="font-semibold">
-          Lead profile
-        </h3>
-        <Card className="mt-3">
-          <CardContent className="p-4">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-              {fields.map(([label, value]) => (
-                <div key={label} className="min-w-0">
-                  <dt className="text-sm text-[#555a53]">{label}</dt>
-                  <dd className="mt-1 break-words">
-                    {value === null ? (
-                      "Not recorded"
-                    ) : label === "Created" || label === "Last contacted" ? (
-                      <time dateTime={value}>{dateTime(value)}</time>
-                    ) : label === "Status" ? (
-                      <Badge variant="secondary">{value}</Badge>
-                    ) : (
-                      value
-                    )}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section aria-labelledby="duplicate-heading" className="mt-8">
-        <h3 id="duplicate-heading" className="font-semibold">
-          Matching records
-        </h3>
-        {lead.duplicateMatches.length === 0 ? (
-          <p className="mt-2">No matching leads found.</p>
-        ) : (
-          <ul className="mt-2 list-disc space-y-2 pl-5">
-            {lead.duplicateMatches.map((match) => (
-              <li key={match.id}>
-                <Link
-                  className={linkClass}
-                  to="/leads/$leadId"
-                  params={{ leadId: match.id }}
-                >
-                  {match.fullName}
-                </Link>{" "}
-                · matches {match.matchedFields.join(" and ")}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section aria-labelledby="activity-heading" className="mt-8">
-        <h3 id="activity-heading" className="font-semibold">
-          Activity history
-        </h3>
-        {lead.activities.length === 0 ? (
-          <p className="mt-2">No activities recorded.</p>
-        ) : (
-          <ol className="mt-2 space-y-3">
-            {lead.activities.map((activity) => (
-              <li key={activity.id}>
-                <Card>
-                  <CardContent className="p-3">
-                    <p className="font-medium">
-                      {readable(activity.type)} ·{" "}
-                      <time dateTime={activity.occurredAt}>
-                        {dateTime(activity.occurredAt)}
+          <Button
+            type="button"
+            disabled={!canLogActivity || activityPending}
+            aria-expanded={action === "activity"}
+            aria-controls="lead-activity-panel"
+            onClick={(event) => {
+              actionTrigger.current = event.currentTarget;
+              setAction("activity");
+              setFeedback("");
+            }}
+          >
+            Log activity
+          </Button>
+        </div>
+      </header>
+      {feedback && (
+        <p role="status" className="mb-4 text-sm text-primary">
+          {feedback}
+        </p>
+      )}
+      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-5">
+          <Card>
+            <CardContent className="p-4 sm:p-5">
+              <section aria-labelledby="profile-heading">
+                <h2 id="profile-heading" className="font-semibold">
+                  Lead information
+                </h2>
+                <dl className="mt-4 grid min-w-0 gap-x-6 gap-y-5 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <dt className="text-sm text-muted-foreground">Phone</dt>
+                    <dd className="mt-1">
+                      <a
+                        className={`${linkClass} break-all`}
+                        href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`}
+                      >
+                        {lead.phone}
+                      </a>
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-sm text-muted-foreground">Email</dt>
+                    <dd className="mt-1">
+                      <a
+                        className={`${linkClass} break-all`}
+                        href={`mailto:${lead.email}`}
+                      >
+                        {lead.email}
+                      </a>
+                    </dd>
+                  </div>
+                  {fields.map(([label, value]) => (
+                    <div key={label} className="min-w-0">
+                      <dt className="text-sm text-muted-foreground">{label}</dt>
+                      <dd className="mt-1 break-words [overflow-wrap:anywhere]">
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                  <div>
+                    <dt className="text-sm text-muted-foreground">Created</dt>
+                    <dd className="mt-1">
+                      <time dateTime={lead.createdAt}>
+                        {formatBusinessDateTime(lead.createdAt)}
                       </time>
-                    </p>
-                    {activity.note && <p className="mt-1">{activity.note}</p>}
-                    {activity.nextFollowUpDate && (
-                      <p className="mt-1 text-sm">
-                        Follow-up: {activity.nextFollowUpDate}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-
-      <ContactPanel leadId={lead.id} leadStatus={lead.status} />
-
-      <TrialPanel
-        leadId={lead.id}
-        leadStatus={lead.status}
-        trials={lead.trials}
-      />
-
-      <ConversionPanel
-        leadId={lead.id}
-        leadStatus={lead.status}
-        conversion={lead.conversion}
-      />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm text-muted-foreground">
+                      Last contacted
+                    </dt>
+                    <dd className="mt-1">
+                      {lead.lastContactAt ? (
+                        <time dateTime={lead.lastContactAt}>
+                          {formatBusinessDateTime(lead.lastContactAt)}
+                        </time>
+                      ) : (
+                        "Not recorded"
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            </CardContent>
+          </Card>
+          {action && (
+            <Card id="lead-activity-panel" className="min-w-0">
+              <CardContent className="p-4 sm:p-5">
+                <ContactPanel
+                  key={action}
+                  leadId={lead.id}
+                  leadStatus={lead.status}
+                  mode={action}
+                  onCancel={closeAction}
+                  onPendingChange={setActivityPending}
+                  onSaved={() => {
+                    setFeedback(
+                      action === "followUp"
+                        ? "Follow-up updated successfully."
+                        : "Activity recorded successfully.",
+                    );
+                    closeAction();
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
+          <Card>
+            <CardContent className="p-4 sm:p-5">
+              <ActivityTimeline activities={lead.activities} />
+            </CardContent>
+          </Card>
+        </div>
+        <aside aria-label="Lead operations" className="min-w-0 space-y-5">
+          <FollowUpCard
+            disabled={activityPending}
+            leadStatus={lead.status}
+            date={lead.nextFollowUpDate}
+            onSchedule={(event) => {
+              actionTrigger.current = event.currentTarget;
+              setAction("followUp");
+              setFeedback("");
+            }}
+            expanded={action === "followUp"}
+          />
+          <Card className="min-w-0">
+            <CardContent className="p-4 sm:p-5">
+              <TrialPanel
+                leadId={lead.id}
+                leadStatus={lead.status}
+                trials={lead.trials}
+              />
+            </CardContent>
+          </Card>
+          <Card className="min-w-0">
+            <CardContent className="p-4 sm:p-5">
+              <ConversionPanel
+                leadId={lead.id}
+                leadStatus={lead.status}
+                conversion={lead.conversion}
+              />
+            </CardContent>
+          </Card>
+          {lead.duplicateMatches.length > 0 && (
+            <Card className="min-w-0">
+              <CardContent className="p-4 sm:p-5">
+                <section aria-labelledby="duplicate-heading">
+                  <h2 id="duplicate-heading" className="font-semibold">
+                    Potential duplicates
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Review these matches before contacting the lead.
+                  </p>
+                  <ul className="mt-3 space-y-3">
+                    {lead.duplicateMatches.map((match) => (
+                      <li key={match.id} className="min-w-0 text-sm">
+                        <Link
+                          className={`${linkClass} break-words`}
+                          to="/leads/$leadId"
+                          params={{ leadId: match.id }}
+                        >
+                          {match.fullName}
+                        </Link>
+                        <p className="mt-1 text-muted-foreground">
+                          Matches {match.matchedFields.join(" and ")}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              </CardContent>
+            </Card>
+          )}
+        </aside>
+      </div>
     </section>
   );
 }

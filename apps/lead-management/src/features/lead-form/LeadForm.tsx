@@ -14,7 +14,6 @@ import {
   type LeadCreateInput,
 } from "@kyzn/shared";
 import { Alert, AlertDescription, AlertTitle } from "@kyzn/ui/components/alert";
-import { Badge } from "@kyzn/ui/components/badge";
 import { Button } from "@kyzn/ui/components/button";
 import { Card, CardContent } from "@kyzn/ui/components/card";
 import { Input } from "@kyzn/ui/components/input";
@@ -28,7 +27,9 @@ import {
 } from "@kyzn/ui/components/select";
 import { Skeleton } from "@kyzn/ui/components/skeleton";
 import { apiRequest, ApiRequestError } from "../../lib/api";
+import { formatBusinessDateTime } from "../../lib/dates";
 import { leadQueryKeys } from "../../lib/query-keys";
+import { LeadStatusBadge } from "../lead-status/LeadStatusBadge";
 
 const sourceLabels = {
   website: "Website",
@@ -214,6 +215,9 @@ export function LeadForm({ leadId }: Props) {
       <h2 id="lead-form-heading" className="text-xl font-semibold">
         {editing ? "Edit lead" : "New lead"}
       </h2>
+      <p className="mt-1 text-sm text-[#555a53]">
+        Fields marked * are required.
+      </p>
       {editing && detail.data && (
         <Card className="mt-3">
           <CardContent className="p-4">
@@ -226,16 +230,14 @@ export function LeadForm({ leadId }: Props) {
                 <dt className="font-semibold">Created</dt>
                 <dd>
                   <time dateTime={detail.data.data.createdAt}>
-                    {new Date(detail.data.data.createdAt).toLocaleString()}
+                    {formatBusinessDateTime(detail.data.data.createdAt)}
                   </time>
                 </dd>
               </div>
               <div>
                 <dt className="font-semibold">Status</dt>
                 <dd>
-                  <Badge variant="secondary">
-                    {detail.data.data.status.replaceAll("_", " ")}
-                  </Badge>
+                  <LeadStatusBadge status={detail.data.data.status} />
                 </dd>
               </div>
               <div>
@@ -243,9 +245,7 @@ export function LeadForm({ leadId }: Props) {
                 <dd>
                   {detail.data.data.lastContactAt ? (
                     <time dateTime={detail.data.data.lastContactAt}>
-                      {new Date(
-                        detail.data.data.lastContactAt,
-                      ).toLocaleString()}
+                      {formatBusinessDateTime(detail.data.data.lastContactAt)}
                     </time>
                   ) : (
                     "Not recorded"
@@ -279,12 +279,16 @@ export function LeadForm({ leadId }: Props) {
           label="Full name"
           name="fullName"
           form={form}
+          required
+          placeholder="Full name"
           autoComplete="name"
         />
         <Field
           label="Phone"
           name="phone"
           form={form}
+          required
+          placeholder="+62 812 3456 7890"
           type="tel"
           autoComplete="tel"
         />
@@ -292,6 +296,8 @@ export function LeadForm({ leadId }: Props) {
           label="Email"
           name="email"
           form={form}
+          required
+          placeholder="name@example.com"
           type="email"
           autoComplete="email"
         />
@@ -300,11 +306,17 @@ export function LeadForm({ leadId }: Props) {
           name="source"
           render={({ field }) => (
             <div className="grid gap-1 font-medium">
-              <Label htmlFor="source">Lead source</Label>
+              <Label
+                htmlFor="source"
+                className="inline-flex items-center gap-1 whitespace-nowrap"
+              >
+                Lead source <RequiredMark />
+              </Label>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger
                   id="source"
                   ref={field.ref}
+                  aria-required="true"
                   aria-invalid={Boolean(form.formState.errors.source)}
                   aria-describedby={
                     form.formState.errors.source ? "source-error" : undefined
@@ -331,6 +343,7 @@ export function LeadForm({ leadId }: Props) {
         <LookupSelect
           label="Interested venue"
           name="venueId"
+          required
           items={venues.data?.data ?? []}
           error={form.formState.errors.venueId?.message}
           form={form}
@@ -338,6 +351,7 @@ export function LeadForm({ leadId }: Props) {
         <LookupSelect
           label="Assigned consultant"
           name="consultantId"
+          required
           items={consultants.data?.data ?? []}
           error={form.formState.errors.consultantId?.message}
           form={form}
@@ -429,12 +443,16 @@ function Field({
   label,
   name,
   form,
+  required = false,
+  placeholder,
   type = "text",
   autoComplete,
 }: {
   label: string;
   name: "fullName" | "phone" | "email" | "nextFollowUpDate";
   form: ReturnType<typeof useForm<LeadCreateInput>>;
+  required?: boolean;
+  placeholder?: string;
   type?: string;
   autoComplete?: string;
 }) {
@@ -442,10 +460,14 @@ function Field({
   const error = form.formState.errors[name]?.message;
   return (
     <Label className="grid gap-1 font-medium" htmlFor={id}>
-      {label}
+      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+        {label} {required && <RequiredMark />}
+      </span>
       <Input
         id={id}
         type={type}
+        placeholder={placeholder}
+        required={required}
         autoComplete={autoComplete}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
@@ -474,12 +496,14 @@ function LookupSelect({
   name,
   items,
   error,
+  required = false,
   form,
 }: {
   label: string;
   name: "venueId" | "consultantId";
   items: { id: string; name: string; active: boolean }[];
   error?: string;
+  required?: boolean;
   form: ReturnType<typeof useForm<LeadCreateInput>>;
 }) {
   return (
@@ -488,7 +512,12 @@ function LookupSelect({
       name={name}
       render={({ field }) => (
         <div className="grid gap-1 font-medium">
-          <Label htmlFor={name}>{label}</Label>
+          <Label
+            htmlFor={name}
+            className="inline-flex items-center gap-1 whitespace-nowrap"
+          >
+            {label} {required && <RequiredMark />}
+          </Label>
           <Select
             value={field.value}
             onValueChange={field.onChange}
@@ -497,6 +526,7 @@ function LookupSelect({
             <SelectTrigger
               id={name}
               ref={field.ref}
+              aria-required={required || undefined}
               aria-invalid={Boolean(error)}
               aria-describedby={error ? `${name}-error` : undefined}
             >
@@ -523,5 +553,13 @@ function LookupSelect({
         </div>
       )}
     />
+  );
+}
+
+function RequiredMark() {
+  return (
+    <span aria-hidden="true" className="shrink-0">
+      *
+    </span>
   );
 }

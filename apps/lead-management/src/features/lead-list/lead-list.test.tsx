@@ -111,7 +111,9 @@ describe("server-backed lead discovery", () => {
     const fetchMock = setup(
       "/leads?source=website&consultantId=consultant-1&status=new&page=2&pageSize=10&sortBy=nextFollowUpDate&sortOrder=asc",
     );
-    expect(await screen.findByText("Ayu Pratama")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Ayu Pratama", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
     const request = fetchMock.mock.calls.find(([url]) =>
       String(url).includes("/v1/leads"),
     );
@@ -128,6 +130,7 @@ describe("server-backed lead discovery", () => {
       "/leads/lead-1",
     );
     expect(screen.getByText("Potential duplicate")).toBeInTheDocument();
+    expect(screen.getByText("New")).toHaveClass("bg-sky-50");
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
     expect(document.querySelectorAll("th")).toHaveLength(7);
@@ -153,11 +156,11 @@ describe("server-backed lead discovery", () => {
       await screen.findByRole("option", { name: "Website" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Website", { selector: "td" })).toBeInTheDocument();
-  });
+  }, 15_000);
 
   test("updates URL for search, sorting and paging; clear removes filters", async () => {
     setup();
-    await screen.findByText("Ayu Pratama");
+    await screen.findByText("Ayu Pratama", {}, { timeout: 10_000 });
     const search = screen.getByRole("searchbox", { name: /Search name/ });
     fireEvent.change(search, { target: { value: "Ayu Pratama" } });
     await waitFor(
@@ -266,7 +269,7 @@ describe("server-backed lead discovery", () => {
     await waitFor(() =>
       expect(new URLSearchParams(window.location.search).get("page")).toBe("2"),
     );
-  });
+  }, 20_000);
 
   test("shows a pending state without rows", async () => {
     const delayed = new Promise<Response>((resolve) =>

@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@kyzn/ui/components/select";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest, ApiRequestError } from "../../lib/api";
@@ -63,22 +63,31 @@ function localDateTimeValue(date: Date) {
 export function ContactPanel({
   leadId,
   leadStatus,
+  mode = "activity",
+  onSaved,
+  onCancel,
+  onPendingChange,
 }: {
   leadId: string;
   leadStatus: LeadStatus;
+  mode?: "activity" | "followUp";
+  onSaved?: () => void;
+  onCancel?: () => void;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const [success, setSuccess] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      type: "call",
+      type: mode === "followUp" ? "note" : "call",
       occurredAt: localDateTimeValue(new Date()),
       note: "",
-      followUpMode: "unchanged",
+      followUpMode: mode === "followUp" ? "set" : "unchanged",
       nextFollowUpDate: "",
     },
   });
+  const contextual = Boolean(onCancel);
   const mutation = useMutation({
     mutationFn: (values: FormValues) => {
       const payload = activityCreateSchema.parse({
@@ -109,8 +118,12 @@ export function ContactPanel({
         queryClient.invalidateQueries({ queryKey: ["dashboard", "metrics"] }),
       ]),
   });
+  useEffect(() => {
+    onPendingChange?.(mutation.isPending);
+  }, [mutation.isPending, onPendingChange]);
 
   async function submit(values: FormValues) {
+    if (mutation.isPending) return;
     setSuccess(false);
     try {
       await mutation.mutateAsync(values);
@@ -123,6 +136,7 @@ export function ContactPanel({
         nextFollowUpDate: "",
       });
       setSuccess(true);
+      onSaved?.();
     } catch {
       // Mutation state keeps the submitted values available for correction or retry.
     }
@@ -139,10 +153,21 @@ export function ContactPanel({
         ? mutation.error.message
         : "Could not record this activity. Your entries are still here.";
   return (
-    <section aria-labelledby="contact-panel-heading" className="mt-8">
-      <h3 id="contact-panel-heading" className="font-semibold">
-        Record contact or activity
-      </h3>
+    <section aria-labelledby="contact-panel-heading">
+      <h2 id="contact-panel-heading" className="font-semibold">
+        {mode === "followUp"
+          ? "Update follow-up"
+          : "Record contact or activity"}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {mode === "followUp"
+          ? "Schedule or clear a follow-up. This starts as a note; choose a contact type only if an interaction occurred."
+          : "Record an interaction and optionally update the next follow-up."}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Times entered here use your device timezone; saved times use the
+        business timezone.
+      </p>
       <form
         className="mt-3 grid max-w-2xl grid-cols-1 gap-4"
         noValidate
@@ -161,6 +186,7 @@ export function ContactPanel({
               >
                 <SelectTrigger
                   id="activity-type"
+                  autoFocus={contextual && mode === "activity"}
                   ref={field.ref}
                   aria-invalid={Boolean(form.formState.errors.type)}
                   aria-describedby={
@@ -253,6 +279,7 @@ export function ContactPanel({
             Follow-up date
             <Input
               id="next-follow-up-date"
+              autoFocus={contextual && mode === "followUp"}
               type="date"
               disabled={disabled}
               aria-invalid={Boolean(form.formState.errors.nextFollowUpDate)}
@@ -270,7 +297,11 @@ export function ContactPanel({
             )}
           </Label>
         )}
-        {mutation.isPending && <p role="status">Recording activity…</p>}
+        {mutation.isPending && (
+          <p role="status">
+            {mode === "followUp" ? "Saving follow-up…" : "Recording activity…"}
+          </p>
+        )}
         {mutation.isError && (
           <Alert role="alert" variant="destructive">
             <AlertDescription>{errorText}</AlertDescription>
@@ -282,9 +313,25 @@ export function ContactPanel({
             Activities cannot be recorded for this lead status.
           </p>
         )}
-        <Button type="submit" disabled={disabled}>
-          {mutation.isPending ? "Recording…" : "Record activity"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={disabled}>
+            {mutation.isPending
+              ? "Recording…"
+              : mode === "followUp"
+                ? "Save follow-up"
+                : "Record activity"}
+          </Button>
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={mutation.isPending}
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+          )}
+        </div>
       </form>
     </section>
   );

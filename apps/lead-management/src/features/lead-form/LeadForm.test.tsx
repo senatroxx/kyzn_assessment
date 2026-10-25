@@ -79,6 +79,53 @@ afterEach(() => {
 });
 
 describe("lead forms", () => {
+  test.each(["/leads/new", "/leads/lead-1/edit"])(
+    "groups required labels inline and preserves required semantics on %s",
+    async (path) => {
+      window.history.replaceState({}, "", path);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((input: RequestInfo | URL) => {
+          const url = String(input);
+          if (url.endsWith("/venues"))
+            return Promise.resolve(json({ data: [venue] }));
+          if (url.endsWith("/consultants"))
+            return Promise.resolve(json({ data: [consultant] }));
+          if (url.includes("/duplicates?"))
+            return Promise.resolve(json({ data: [] }));
+          return Promise.resolve(json({ data: leadDetail }));
+        }),
+      );
+      render(<App />);
+      await screen.findByLabelText(/Full name/);
+
+      for (const id of [
+        "fullName",
+        "phone",
+        "email",
+        "source",
+        "venueId",
+        "consultantId",
+      ]) {
+        const label = document.querySelector(`label[for="${id}"]`);
+        const mark = label?.querySelector('[aria-hidden="true"]');
+        expect(mark).toHaveTextContent("*");
+        expect(mark?.parentElement).toHaveClass(
+          "inline-flex",
+          "items-center",
+          "whitespace-nowrap",
+        );
+        const control = document.getElementById(id);
+        expect(control).toBeRequired();
+      }
+      const optionalLabel = document.querySelector(
+        'label[for="nextFollowUpDate"]',
+      );
+      expect(optionalLabel?.querySelector('[aria-hidden="true"]')).toBeNull();
+      expect(screen.getByLabelText(/Next follow-up date/)).not.toBeRequired();
+    },
+  );
+
   test("shows shared schema feedback and blocks an invalid submission", async () => {
     const fetchMock = vi
       .fn()
@@ -89,14 +136,22 @@ describe("lead forms", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    const fullName = await screen.findByLabelText(/Full name/);
+    expect(
+      screen.getByText("Fields marked * are required."),
+    ).toBeInTheDocument();
+    expect(fullName).toBeRequired();
+    expect(await screen.findByLabelText(/Phone/)).toBeRequired();
+    expect(await screen.findByLabelText(/Email/)).toBeRequired();
+    expect(fullName).toHaveAttribute("placeholder", "Full name");
     await screen.findByRole("combobox", { name: "Interested venue" });
-    fireEvent.change(screen.getByLabelText("Full name"), {
+    fireEvent.change(screen.getByLabelText(/Full name/), {
       target: { value: "Rani Putri" },
     });
-    fireEvent.change(screen.getByLabelText("Phone"), {
+    fireEvent.change(screen.getByLabelText(/Phone/), {
       target: { value: "invalid" },
     });
-    fireEvent.change(screen.getByLabelText("Email"), {
+    fireEvent.change(screen.getByLabelText(/Email/), {
       target: { value: "rani@example.com" },
     });
     await chooseOption("Interested venue", "Central");
@@ -161,13 +216,13 @@ describe("lead forms", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
     await screen.findByRole("combobox", { name: "Interested venue" });
-    fireEvent.change(screen.getByLabelText("Full name"), {
+    fireEvent.change(screen.getByLabelText(/Full name/), {
       target: { value: "Rani Putri" },
     });
-    fireEvent.change(screen.getByLabelText("Phone"), {
+    fireEvent.change(screen.getByLabelText(/Phone/), {
       target: { value: lead.phone },
     });
-    fireEvent.change(screen.getByLabelText("Email"), {
+    fireEvent.change(screen.getByLabelText(/Email/), {
       target: { value: lead.email },
     });
     await chooseOption("Interested venue", "Central");
@@ -209,13 +264,13 @@ describe("lead forms", () => {
     );
     render(<App />);
     await screen.findByRole("combobox", { name: "Interested venue" });
-    fireEvent.change(screen.getByLabelText("Full name"), {
+    fireEvent.change(screen.getByLabelText(/Full name/), {
       target: { value: "Rani Putri" },
     });
-    fireEvent.change(screen.getByLabelText("Phone"), {
+    fireEvent.change(screen.getByLabelText(/Phone/), {
       target: { value: "+6281234567890" },
     });
-    fireEvent.change(screen.getByLabelText("Email"), {
+    fireEvent.change(screen.getByLabelText(/Email/), {
       target: { value: "rani@example.com" },
     });
     await chooseOption("Interested venue", "Central");
@@ -224,7 +279,7 @@ describe("lead forms", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Phone already invalid on server",
     );
-    expect(screen.getByLabelText("Full name")).toHaveValue("Rani Putri");
+    expect(screen.getByLabelText(/Full name/)).toHaveValue("Rani Putri");
   });
 
   test("edit excludes itself from duplicate checks and patches only editable fields", async () => {
@@ -249,8 +304,8 @@ describe("lead forms", () => {
       });
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
-    const name = await screen.findByLabelText("Full name");
-    await screen.findByLabelText("Assigned consultant");
+    const name = await screen.findByLabelText(/Full name/);
+    await screen.findByLabelText(/Assigned consultant/);
     fireEvent.change(name, { target: { value: "Rani Updated" } });
     await waitFor(() =>
       expect(

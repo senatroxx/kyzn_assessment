@@ -3,7 +3,6 @@ import type { LeadStatus, Trial, Venue } from "@kyzn/shared";
 import { Alert, AlertDescription } from "@kyzn/ui/components/alert";
 import { Badge } from "@kyzn/ui/components/badge";
 import { Button } from "@kyzn/ui/components/button";
-import { Card, CardContent } from "@kyzn/ui/components/card";
 import { Input } from "@kyzn/ui/components/input";
 import { Label } from "@kyzn/ui/components/label";
 import {
@@ -19,11 +18,11 @@ import {
   trialUpdateSchema,
   venuesResponseSchema,
 } from "@kyzn/shared";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "../../lib/api";
+import { formatBusinessDateTime } from "../../lib/dates";
 import { leadQueryKeys } from "../../lib/query-keys";
 
-const dateTime = (value: string) => new Date(value).toLocaleString();
 const toLocalInput = (value: string) => {
   const date = new Date(value);
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
@@ -48,6 +47,12 @@ export function TrialPanel({
   const [venueId, setVenueId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const scheduleTrigger = useRef<HTMLButtonElement>(null);
+  const scheduledInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (formOpen) scheduledInput.current?.focus();
+  }, [formOpen, editing]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const canSchedule = ["new", "contacted", "trial_scheduled"].includes(
@@ -69,6 +74,8 @@ export function TrialPanel({
       setSuccess("Trial updated successfully.");
       setEditing(null);
       setScheduledAt("");
+      setFormOpen(false);
+      scheduleTrigger.current?.focus();
       await Promise.all([
         client.invalidateQueries({ queryKey: leadQueryKeys.detail(leadId) }),
         client.invalidateQueries({ queryKey: leadQueryKeys.lists() }),
@@ -80,11 +87,24 @@ export function TrialPanel({
   const venueNames = new Map(
     (venues.data?.data ?? []).map((venue: Venue) => [venue.id, venue.name]),
   );
+  useEffect(() => {
+    if (success && !formOpen && !mutation.isPending)
+      scheduleTrigger.current?.focus();
+  }, [success, formOpen, mutation.isPending]);
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!scheduledAt || (!editing && !venueId)) return;
+    if (mutation.isPending) return;
+    if (
+      (!editing && !venueId) ||
+      !scheduledAt ||
+      !Number.isFinite(Date.parse(scheduledAt))
+    ) {
+      setError("Choose a venue and a valid scheduled time.");
+      return;
+    }
     setSuccess("");
+    setError("");
     mutation.mutate({
       trialId: editing ?? undefined,
       body: editing
@@ -100,6 +120,7 @@ export function TrialPanel({
     trialId: string,
     status: "completed" | "cancelled" | "no_show",
   ) {
+    if (mutation.isPending) return;
     const verb =
       status === "no_show"
         ? "mark this trial as no-show"
@@ -116,10 +137,10 @@ export function TrialPanel({
   }
 
   return (
-    <section aria-labelledby="trial-heading" className="mt-8">
-      <h3 id="trial-heading" className="font-semibold">
-        Trials
-      </h3>
+    <section aria-labelledby="trial-heading">
+      <h2 id="trial-heading" className="font-semibold">
+        Trial session
+      </h2>
       {venues.isPending && (
         <div role="status" className="mt-2 space-y-2">
           <span className="sr-only">Loading venues…</span>
@@ -147,22 +168,28 @@ export function TrialPanel({
       {trials.length === 0 ? (
         <p className="mt-2">No trials recorded.</p>
       ) : (
-        <ol className="mt-3 space-y-3">
-          {trials.map((trial) => {
-            const scheduledAction =
-              trial.status === "scheduled" &&
-              !["lost", "invalid"].includes(leadStatus);
-            return (
-              <li key={trial.id}>
-                <Card>
-                  <CardContent className="p-3">
+        <ol className="mt-3 divide-y divide-border">
+          {[...trials]
+            .sort(
+              (a, b) =>
+                Number(b.status === "scheduled") -
+                  Number(a.status === "scheduled") ||
+                Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt),
+            )
+            .map((trial) => {
+              const scheduledAction =
+                trial.status === "scheduled" &&
+                !["lost", "invalid"].includes(leadStatus);
+              return (
+                <li key={trial.id}>
+                  <div className="py-3 text-sm break-words">
                     <p className="font-medium">
                       <Badge variant="outline">
                         {trial.status.replaceAll("_", " ")}
                       </Badge>{" "}
                       ·{" "}
                       <time dateTime={trial.scheduledAt}>
-                        {dateTime(trial.scheduledAt)}
+                        {formatBusinessDateTime(trial.scheduledAt)}
                       </time>
                     </p>
                     <p className="mt-1 text-sm">
@@ -172,7 +199,7 @@ export function TrialPanel({
                       <p className="mt-1 text-sm">
                         Completed:{" "}
                         <time dateTime={trial.completedAt}>
-                          {dateTime(trial.completedAt)}
+                          {formatBusinessDateTime(trial.completedAt)}
                         </time>
                       </p>
                     )}
@@ -189,6 +216,7 @@ export function TrialPanel({
                               setEditing(trial.id);
                               setScheduledAt(toLocalInput(trial.scheduledAt));
                               setVenueId(trial.venueId);
+                              setFormOpen(true);
                             }}
                           >
                             Reschedule
@@ -223,18 +251,48 @@ export function TrialPanel({
                         </Button>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              </li>
-            );
-          })}
+                  </div>
+                </li>
+              );
+            })}
         </ol>
       )}
       {canSchedule && !venues.isError && (
-        <form className="mt-4 grid max-w-xl gap-3" onSubmit={save}>
-          <h4 className="font-medium">
+        <Button
+          ref={scheduleTrigger}
+          type="button"
+          variant="outline"
+          className="mt-3"
+          disabled={mutation.isPending}
+          aria-expanded={formOpen}
+          aria-controls="trial-schedule-form"
+          onClick={() => {
+            setError("");
+            setSuccess("");
+            if (formOpen) setFormOpen(false);
+            else {
+              setEditing(null);
+              setFormOpen(true);
+            }
+          }}
+        >
+          {formOpen ? "Close scheduling" : "Schedule trial"}
+        </Button>
+      )}
+      {canSchedule && !venues.isError && formOpen && (
+        <form
+          id="trial-schedule-form"
+          className="mt-4 grid max-w-xl gap-3"
+          onSubmit={save}
+          aria-labelledby="trial-form-heading"
+        >
+          <h3 id="trial-form-heading" className="font-medium">
             {editing ? "Reschedule trial" : "Schedule a trial"}
-          </h4>
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Choose the venue and appointment time. Times entered here use your
+            device timezone.
+          </p>
           <div className="grid gap-1">
             <Label htmlFor="trial-venue">Venue</Label>
             <Select
@@ -242,7 +300,12 @@ export function TrialPanel({
               onValueChange={setVenueId}
               disabled={venues.isPending || mutation.isPending}
             >
-              <SelectTrigger id="trial-venue">
+              <SelectTrigger
+                id="trial-venue"
+                aria-required="true"
+                aria-invalid={Boolean(error && !venueId)}
+                aria-describedby={error && !venueId ? "trial-error" : undefined}
+              >
                 <SelectValue placeholder="Choose a venue" />
               </SelectTrigger>
               <SelectContent>
@@ -258,7 +321,12 @@ export function TrialPanel({
             Scheduled time
             <Input
               id="trial-scheduled-at"
+              ref={scheduledInput}
               required
+              aria-invalid={Boolean(error && !scheduledAt)}
+              aria-describedby={
+                error && !scheduledAt ? "trial-error" : undefined
+              }
               type="datetime-local"
               value={scheduledAt}
               onChange={(event) => setScheduledAt(event.target.value)}
@@ -278,25 +346,32 @@ export function TrialPanel({
                   ? "Save schedule"
                   : "Schedule trial"}
             </Button>
-            {editing && (
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => {
-                  setEditing(null);
-                  setScheduledAt("");
-                }}
-              >
-                Stop rescheduling
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              type="button"
+              disabled={mutation.isPending}
+              onClick={() => {
+                setEditing(null);
+                setScheduledAt("");
+                setFormOpen(false);
+                setError("");
+                scheduleTrigger.current?.focus();
+              }}
+            >
+              Cancel
+            </Button>
           </div>
         </form>
       )}
       {error && (
-        <Alert role="alert" variant="destructive" className="mt-3">
+        <Alert
+          id="trial-error"
+          role="alert"
+          variant="destructive"
+          className="mt-3"
+        >
           <AlertDescription>
-            {error}. Your entries are still here.
+            {error} Your entries are still here.
           </AlertDescription>
         </Alert>
       )}

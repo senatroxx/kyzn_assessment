@@ -6,6 +6,7 @@ import { activitiesRouter } from "./modules/leads/activities/router.ts";
 import { conversionRouter } from "./modules/leads/conversions/router.ts";
 import { duplicatesRouter } from "./modules/leads/duplicates/router.ts";
 import { dashboardMetricsRouter } from "./modules/dashboard/metrics/router.ts";
+import { dashboardInsightsRouter } from "./modules/dashboard/insights/router.ts";
 import { leadListRouter } from "./modules/leads/list/router.ts";
 import { leadsRouter } from "./modules/leads/router.ts";
 import { trialRouter } from "./modules/leads/trials/router.ts";
@@ -30,6 +31,10 @@ export function createApp(
     app.use(
       "/api/v1/dashboard",
       dashboardMetricsRouter(db, now, env.BUSINESS_TIME_ZONE),
+    );
+    app.use(
+      "/api/v1/dashboard",
+      dashboardInsightsRouter(db, now, env.BUSINESS_TIME_ZONE),
     );
     app.use("/api/v1/leads/duplicates", duplicatesRouter(db));
     app.use("/api/v1/leads", leadListRouter(db));

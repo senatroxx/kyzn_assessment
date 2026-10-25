@@ -56,6 +56,8 @@ function setup(
 }
 
 async function chooseVenue() {
+  if (!screen.queryByRole("combobox", { name: "Venue" }))
+    fireEvent.click(screen.getByRole("button", { name: "Schedule trial" }));
   const trigger = screen.getByRole("combobox", { name: "Venue" });
   await waitFor(() => expect(trigger).toBeEnabled());
   trigger.focus();
@@ -92,6 +94,36 @@ afterEach(() => {
 });
 
 describe("TrialPanel", () => {
+  test("associates missing venue feedback and does not submit", async () => {
+    const { fetchMock } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Schedule trial" }));
+    fireEvent.change(screen.getByLabelText("Scheduled time"), {
+      target: { value: "2026-10-26T10:00" },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Venue" })).toBeEnabled(),
+    );
+    fireEvent.submit(screen.getByLabelText("Scheduled time").closest("form")!);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Choose a venue and a valid scheduled time.",
+    );
+    expect(screen.getByRole("combobox", { name: "Venue" })).toHaveAttribute(
+      "aria-describedby",
+      "trial-error",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  test("opens scheduling on demand and restores focus on cancel", async () => {
+    setup();
+    expect(screen.queryByLabelText("Scheduled time")).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Schedule trial" });
+    fireEvent.click(trigger);
+    expect(screen.getByLabelText("Scheduled time")).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText("Scheduled time")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    await screen.findByRole("button", { name: "Schedule trial" });
+  });
   test("looks up venues and schedules a human-entered appointment as UTC", async () => {
     const { fetchMock, invalidate } = setup();
     await chooseVenue();
@@ -113,6 +145,12 @@ describe("TrialPanel", () => {
       ),
     );
     await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(3));
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Scheduled time")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Schedule trial" }),
+    ).toHaveFocus();
     expect(invalidate).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: ["dashboard", "metrics"] }),
     );

@@ -94,6 +94,9 @@ describe("paid membership conversion", () => {
       screen.queryByRole("button", { name: "Confirm conversion" }),
     ).not.toBeInTheDocument();
     expect(fetcher).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Record paid membership" }),
+    ).toHaveFocus();
   });
 
   test("confirms without a trial, disables repeat submit, shows response and invalidates affected queries", async () => {

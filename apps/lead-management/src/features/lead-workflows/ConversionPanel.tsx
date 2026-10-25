@@ -12,6 +12,7 @@ import {
   type LeadStatus,
 } from "@kyzn/shared";
 import { apiRequest, ApiRequestError } from "../../lib/api";
+import { formatBusinessDateTime } from "../../lib/dates";
 import { leadQueryKeys } from "../../lib/query-keys";
 
 const eligibleStatuses: LeadStatus[] = [
@@ -19,7 +20,6 @@ const eligibleStatuses: LeadStatus[] = [
   "trial_scheduled",
   "trial_completed",
 ];
-const dateTime = (value: string) => new Date(value).toLocaleString();
 
 export function ConversionPanel({
   leadId,
@@ -36,6 +36,9 @@ export function ConversionPanel({
   const [membershipReference, setMembershipReference] = useState("");
   const [result, setResult] = useState<Conversion | null>(null);
   const noteRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const wasConfirming = useRef(false);
   const savedConversion = conversion ?? result;
   const eligible = eligibleStatuses.includes(leadStatus);
   const mutation = useMutation({
@@ -64,43 +67,62 @@ export function ConversionPanel({
 
   useEffect(() => {
     if (confirming) noteRef.current?.focus();
+    else if (wasConfirming.current)
+      (triggerRef.current ?? headingRef.current)?.focus();
+    wasConfirming.current = confirming;
   }, [confirming]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (mutation.isPending) return;
     mutation.mutate(
       conversionCreateSchema.parse({ note, membershipReference }),
     );
   }
 
   return (
-    <section aria-labelledby="conversion-action-heading" className="mt-4">
-      <h4 id="conversion-action-heading" className="font-semibold">
+    <section
+      aria-labelledby="conversion-action-heading"
+      className="break-words"
+    >
+      <h2
+        ref={headingRef}
+        tabIndex={-1}
+        id="conversion-action-heading"
+        className="font-semibold"
+      >
         Paid membership
-      </h4>
+      </h2>
       {savedConversion ? (
-        <dl className="mt-2 grid gap-3 sm:grid-cols-2">
-          <div>
-            <dt className="text-sm text-[#555a53]">Converted</dt>
-            <dd>
-              <time dateTime={savedConversion.convertedAt}>
-                {dateTime(savedConversion.convertedAt)}
-              </time>
-            </dd>
-          </div>
-          {savedConversion.note && (
-            <div>
-              <dt className="text-sm text-[#555a53]">Note</dt>
-              <dd>{savedConversion.note}</dd>
-            </div>
+        <>
+          {result && (
+            <p className="mt-2 text-sm text-primary" role="status">
+              Membership conversion recorded.
+            </p>
           )}
-          {savedConversion.membershipReference && (
+          <dl className="mt-2 grid gap-3 sm:grid-cols-2">
             <div>
-              <dt className="text-sm text-[#555a53]">Membership reference</dt>
-              <dd>{savedConversion.membershipReference}</dd>
+              <dt className="text-sm text-[#555a53]">Converted</dt>
+              <dd>
+                <time dateTime={savedConversion.convertedAt}>
+                  {formatBusinessDateTime(savedConversion.convertedAt)}
+                </time>
+              </dd>
             </div>
-          )}
-        </dl>
+            {savedConversion.note && (
+              <div>
+                <dt className="text-sm text-[#555a53]">Note</dt>
+                <dd>{savedConversion.note}</dd>
+              </div>
+            )}
+            {savedConversion.membershipReference && (
+              <div>
+                <dt className="text-sm text-[#555a53]">Membership reference</dt>
+                <dd>{savedConversion.membershipReference}</dd>
+              </div>
+            )}
+          </dl>
+        </>
       ) : !eligible ? (
         <>
           <p className="mt-2">No conversion recorded.</p>
@@ -112,16 +134,23 @@ export function ConversionPanel({
         <>
           <p className="mt-2">No conversion recorded.</p>
           <Button
+            ref={triggerRef}
             type="button"
             className="mt-2"
-            variant="ghost"
+            variant="outline"
+            aria-expanded={false}
             onClick={() => setConfirming(true)}
           >
             Record paid membership
           </Button>
         </>
       ) : (
-        <form className="mt-2 space-y-3" onSubmit={submit}>
+        <form
+          className="mt-3 space-y-3"
+          onSubmit={submit}
+          aria-label="Record paid membership"
+        >
+          <h3 className="font-medium">Confirm paid conversion</h3>
           <p>
             Confirm that payment has been recorded. This is a manual business
             record; no payment is processed.
@@ -133,6 +162,7 @@ export function ConversionPanel({
             <Input
               ref={noteRef}
               id="conversion-note"
+              disabled={mutation.isPending}
               value={note}
               onChange={(event) => setNote(event.target.value)}
               className="mt-1"
@@ -144,6 +174,7 @@ export function ConversionPanel({
             </Label>
             <Input
               id="membership-reference"
+              disabled={mutation.isPending}
               value={membershipReference}
               onChange={(event) => setMembershipReference(event.target.value)}
               className="mt-1"
@@ -168,6 +199,7 @@ export function ConversionPanel({
               onClick={() => {
                 setConfirming(false);
                 mutation.reset();
+                triggerRef.current?.focus();
               }}
               variant="outline"
             >
